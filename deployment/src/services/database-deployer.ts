@@ -1,12 +1,12 @@
 import { Logger } from '../utils/logger';
-import { DeploymentConfig, DatabaseConnectionConfig } from '../types/config';
-import { execSync } from 'child_process';
+import { DeploymentConfig } from '../types/config';
+import { BaseDeployer } from './base-deployer';
 import { readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { Client } from 'pg';
 
 // 默认 PostgreSQL 配置
-const DEFAULT_POSTGRES_CONFIG: DatabaseConnectionConfig = {
+const DEFAULT_POSTGRES_CONFIG = {
   use_remote: false,
   host: '127.0.0.1',
   port: 5432,
@@ -23,20 +23,9 @@ interface DatabaseConfig {
   init?: string;
 }
 
-export class DatabaseDeployer {
-  private readonly config: DeploymentConfig;
-  private readonly logger: Logger;
-  private readonly workDir: string;
-  private readonly postgresServiceName: string;
-  private readonly dbConfig: DatabaseConnectionConfig;
-
+export class DatabaseDeployer extends BaseDeployer {
   constructor(config: DeploymentConfig, logger: Logger) {
-    this.config = config;
-    this.logger = logger;
-    this.workDir = path.join(process.cwd(), 'deployment');
-    this.postgresServiceName = `postgres${config.deployment_suffix}`;
-    // 使用配置文件中的数据库配置,如果没有则使用默认配置
-    this.dbConfig = config.database || DEFAULT_POSTGRES_CONFIG;
+    super(config, logger);
   }
 
   public async deploy(): Promise<void> {
@@ -49,9 +38,9 @@ export class DatabaseDeployer {
       // 2. 准备初始化脚本
       await this.prepareInitScript(dbConfigs);
 
-      if (this.dbConfig.use_remote) {
+      if (this.config.database?.use_remote) {
         // 使用远程数据库
-        this.logger.info('使用远程数据库:', this.dbConfig.host);
+        this.logger.info('使用远程数据库:', this.config.database.host);
         await this.initializeRemoteDatabase(dbConfigs);
       } else {
         // 部署本地数据库
@@ -66,15 +55,24 @@ export class DatabaseDeployer {
     }
   }
 
+  private async deployLocalDatabase(dbConfigs: Record<string, DatabaseConfig>): Promise<void> {
+    this.logger.info('部署本地数据库...');
+
+    // 使用 Docker Compose 启动数据库服务
+    await this.startServices('db');
+    await this.waitForHealthy('db');
+  }
+
   private async initializeRemoteDatabase(dbConfigs: Record<string, DatabaseConfig>): Promise<void> {
     this.logger.info('初始化远程数据库...');
 
+    const dbConfig = this.config.database || DEFAULT_POSTGRES_CONFIG;
     const client = new Client({
-      host: this.dbConfig.host,
-      port: this.dbConfig.port,
-      database: this.dbConfig.master_db,
-      user: this.dbConfig.master_user,
-      password: this.dbConfig.master_password
+      host: dbConfig.host,
+      port: dbConfig.port,
+      database: dbConfig.master_db,
+      user: dbConfig.master_user,
+      password: dbConfig.master_password
     });
 
     try {
@@ -99,25 +97,6 @@ export class DatabaseDeployer {
     } finally {
       await client.end();
     }
-  }
-
-  private async deployLocalDatabase(dbConfigs: Record<string, DatabaseConfig>): Promise<void> {
-    this.logger.info('部署本地数据库...');
-
-    const cmd = `docker run -d \
-      --name ${this.postgresServiceName} \
-      -p ${this.dbConfig.port}:${this.dbConfig.port} \
-      -e POSTGRES_DB=${this.dbConfig.master_db} \
-      -e POSTGRES_USER=${this.dbConfig.master_user} \
-      -e POSTGRES_PASSWORD=${this.dbConfig.master_password} \
-      -v ${path.join(this.workDir, 'build', `init${this.config.deployment_suffix}.sql`)}:/docker-entrypoint-initdb.d/init.sql \
-      postgres:16.2 \
-      -N 1000`;
-
-    execSync(cmd);
-
-    // 等待数据库启动
-    await this.waitForDatabase();
   }
 
   private getDbConfigs(): Record<string, DatabaseConfig> {
@@ -224,10 +203,11 @@ export class DatabaseDeployer {
 
   private renderInitScript(template: string, dbConfigs: Record<string, DatabaseConfig>): string {
     let script = template;
+    const dbConfig = this.config.database || DEFAULT_POSTGRES_CONFIG;
 
     // 替换主数据库配置
-    script = script.replace(/\{\{master_db\}\}/g, this.dbConfig.master_db);
-    script = script.replace(/\{\{master_user\}\}/g, this.dbConfig.master_user);
+    script = script.replace(/\{\{master_db\}\}/g, dbConfig.master_db);
+    script = script.replace(/\{\{master_user\}\}/g, dbConfig.master_user);
 
     // 替换数据库配置
     let dbCreationScript = '';
@@ -246,38 +226,5 @@ ${db.init ? `\\c ${db.name}\n${db.init}` : ''}
 
     script = script.replace(/\{\{db_creation\}\}/g, dbCreationScript);
     return script;
-  }
-
-  private async waitForDatabase(): Promise<void> {
-    this.logger.info('等待数据库启动...');
-    
-    let retries = 30;
-    while (retries > 0) {
-      try {
-        if (this.dbConfig.use_remote) {
-          // 检查远程数据库连接
-          const client = new Client({
-            host: this.dbConfig.host,
-            port: this.dbConfig.port,
-            database: this.dbConfig.master_db,
-            user: this.dbConfig.master_user,
-            password: this.dbConfig.master_password
-          });
-          await client.connect();
-          await client.end();
-        } else {
-          // 检查本地数据库容器
-          execSync(`docker exec ${this.postgresServiceName} pg_isready`);
-        }
-        this.logger.info('数据库已就绪');
-        return;
-      } catch (error) {
-        retries--;
-        if (retries === 0) {
-          throw new Error('数据库启动超时');
-        }
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
   }
 } 

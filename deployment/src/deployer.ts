@@ -1,12 +1,14 @@
 import { execSync } from 'child_process';
-import { DeploymentConfig } from './types/config';
-import { DeploymentStages } from './types/stages';
+import { DeploymentConfig, DeploymentStages } from './types';
 import { Logger } from './utils/logger';
 import { ContractDeployer } from './services/contract-deployer';
 import { DatabaseDeployer } from './services/database-deployer';
 import { CentralEnvironmentDeployer } from './services/central-environment-deployer';
+import { L2ContractDeployer } from './services/l2-contract-deployer';
+import { AgglayerDeployer } from './services/agglayer-deployer';
 import { readFileSync, writeFileSync } from 'fs';
 import path from 'path';
+import fs from 'fs';
 
 export class CDKDeployer {
   private readonly config: DeploymentConfig;
@@ -56,25 +58,33 @@ export class CDKDeployer {
       // 4. 部署 CDK 中心环境
       if (this.stages.deploy_cdk_central_environment) {
         await this.deployCDKCentralEnvironment();
+
+        // 5. 部署 L2 合约
+        if (this.stages.deploy_l2_contracts) {
+          const l2ContractDeployer = new L2ContractDeployer(this.config, this.logger);
+          await l2ContractDeployer.deploy(true);
+        } else {
+          this.logger.info('跳过 L2 合约部署');
+        }
       } else {
         this.logger.info('跳过 CDK 中心环境部署');
       }
 
-      // 5. 部署桥接基础设施
+      // 6. 部署桥接基础设施
       if (this.stages.deploy_cdk_bridge_infra) {
         await this.deployBridgeInfrastructure();
       } else {
         this.logger.info('跳过桥接基础设施部署');
       }
 
-      // 6. 部署 AggLayer
+      // 7. 部署 AggLayer
       if (this.stages.deploy_agglayer) {
         await this.deployAggLayer();
       } else {
         this.logger.info('跳过 AggLayer 部署');
       }
 
-      // 7. 部署额外服务
+      // 8. 部署额外服务
       await this.deployAdditionalServices();
 
       this.logger.info('CDK 堆栈部署完成!');
@@ -86,7 +96,29 @@ export class CDKDeployer {
 
   private async deployL1Chain(): Promise<void> {
     this.logger.info('部署本地 L1 链...');
-    // TODO: 实现 L1 链部署逻辑
+    
+    if (this.config.use_local_l1) {
+      try {
+        if (this.config.l1_engine === 'anvil') {
+          // 部署 Anvil 本地开发链
+          const anvilCmd = `docker run -d --name anvil${this.config.deployment_suffix} -p ${this.config.ports.anvil_port}:8545 ${this.config.images.anvil_image} --host 0.0.0.0 --chain-id ${this.config.l1_chain_id}`;
+          execSync(anvilCmd);
+          this.logger.info(`Anvil 本地 L1 链已启动在端口 ${this.config.ports.anvil_port}`);
+          
+          // 更新 RPC URL
+          this.config.l1_rpc_url = `http://localhost:${this.config.ports.anvil_port}`;
+          this.config.l1_ws_url = `ws://localhost:${this.config.ports.anvil_port}`;
+        } else {
+          // 使用 Geth 或其他引擎部署本地链的逻辑
+          this.logger.warn(`尚未实现 ${this.config.l1_engine} 引擎的本地 L1 链部署`);
+        }
+      } catch (error) {
+        this.logger.error('本地 L1 链部署失败:', error);
+        throw error;
+      }
+    } else {
+      this.logger.info(`使用现有的 L1 链: ${this.config.l1_rpc_url}`);
+    }
   }
 
   private async deployZkEVMContracts(): Promise<void> {
@@ -270,7 +302,12 @@ export class CDKDeployer {
 
   private async deployAggLayer(): Promise<void> {
     this.logger.info('部署 AggLayer...');
-    // TODO: 实现 AggLayer 部署逻辑
+    const agglayerDeployer = new AgglayerDeployer(
+      this.config,
+      this.logger,
+      this.contractAddresses
+    );
+    await agglayerDeployer.deploy();
   }
 
   private async deployAdditionalServices(): Promise<void> {
@@ -468,5 +505,16 @@ export class CDKDeployer {
     // 3. 执行命令
     execSync(cmd);
     this.logger.info(`服务 ${serviceName} 已启动`);
+  }
+
+  private async prepareDeploymentDirectory(): Promise<void> {
+    this.logger.info('准备部署目录...');
+    const buildDir = path.join(process.cwd(), 'deployment', 'build');
+    try {
+      await fs.promises.mkdir(buildDir, { recursive: true });
+    } catch (error) {
+      this.logger.error('创建部署目录失败:', error);
+      throw error;
+    }
   }
 } 

@@ -20,6 +20,10 @@ export interface DeploymentConfig {
   l1_additional_services: string[];
   l1_deploy_lxly_bridge_and_call: boolean;
   l1_explorer_url: string;
+
+  // Genesis配置
+  genesis_artifact?: string;
+  genesis_file?: string;
   
   // L2 配置
   l2_accounts_to_fund: number;
@@ -152,6 +156,20 @@ export interface DeploymentConfig {
 
   // Prover 配置
   prover?: ProverDeployConfig;
+
+  deployment_stages: {
+    deploy_l1?: boolean;
+    deploy_zkevm_contracts_on_l1?: boolean;
+    deploy_databases?: boolean;
+    deploy_agglayer?: boolean;
+    deploy_cdk_central_environment?: boolean;
+    deploy_cdk_erigon_node?: boolean;
+    deploy_cdk_bridge_infra?: boolean;
+    deploy_cdk_bridge_ui?: boolean;
+    deploy_l2_contracts?: boolean;
+    deploy_optimism_rollup?: boolean;
+    deploy_op_succinct?: boolean;
+  };
 }
 
 // 数据库配置
