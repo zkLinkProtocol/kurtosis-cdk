@@ -1,7 +1,7 @@
 import { Logger } from '../utils/logger';
 import { DeploymentConfig } from '../types/config';
 import { BaseDeployer } from './base-deployer';
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import { Client } from 'pg';
 
@@ -187,17 +187,18 @@ export class DatabaseDeployer extends BaseDeployer {
   }
 
   private readInitSql(filename: string): string {
-    const filePath = path.join(this.workDir, 'templates', 'databases', filename);
+    const filePath = path.join(this.pathManager.getTemplatesDir(), 'databases', filename);
     return readFileSync(filePath, 'utf8');
   }
 
   private async prepareInitScript(dbConfigs: Record<string, DatabaseConfig>): Promise<void> {
     this.logger.info('准备数据库初始化脚本...');
 
+    const buildDir = this.pathManager.getBuildDir();
     const initScriptTemplate = this.readInitSql('init.sql');
     const renderedScript = this.renderInitScript(initScriptTemplate, dbConfigs);
     
-    const outputPath = path.join(this.workDir, 'build', `init${this.config.deployment_suffix}.sql`);
+    const outputPath = path.join(buildDir, `init${this.config.deployment_suffix}.sql`);
     writeFileSync(outputPath, renderedScript);
   }
 

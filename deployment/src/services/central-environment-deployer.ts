@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 import { readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { BaseDeployer } from './base-deployer';
+import { existsSync, mkdirSync } from 'fs';
 
 // Keystore 文件接口
 interface KeystoreArtifacts {
@@ -77,13 +78,10 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
                          !this.config.enable_normalcy && 
                          this.config.consensus_contract_type !== 'pessimistic';
 
-    // 如果配置了 Prover 部署选项,则按配置决定
-    if (this.config.prover) {
-      return this.config.prover.deploy_prover && baseCondition;
+    if (!this.config.prover) {
+      return false;
     }
-
-    // 如果没有配置,则按基本条件决定
-    return baseCondition;
+    return (this.config.prover.deploy_prover ?? false) && baseCondition;
   }
 
   private async deployProver(): Promise<void> {
@@ -99,8 +97,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     });
 
     // 写入配置文件
-    const configPath = path.join(this.workDir, 'build', 'prover-config.json');
-    writeFileSync(configPath, proverConfig);
+    this.writeConfig('prover-config.json', proverConfig);
 
     // 启动 Prover 服务
     await this.startServices('core');
@@ -118,10 +115,8 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     const genesisTemplate = this.readTemplate(genesisFile);
     const genesisContent = this.renderTemplate(genesisTemplate, {});
     
-    const outputPath = path.join(this.workDir, 'build', 'genesis.json');
-    writeFileSync(outputPath, genesisContent);
-    
-    return outputPath;
+    this.writeConfig('genesis.json', genesisContent);
+    return this.pathManager.getBuildPath('genesis.json');
   }
 
   private async deployZkEVMComponents(genesisArtifact: string): Promise<void> {
@@ -135,8 +130,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     });
 
     // 写入配置文件
-    const configPath = path.join(this.workDir, 'build', 'node-config.toml');
-    writeFileSync(configPath, nodeConfig);
+    this.writeConfig('node-config.toml', nodeConfig);
 
     // 2. 启动节点服务
     await this.startServices('node');
@@ -152,19 +146,38 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     }
 
     // 2. 创建 CDK Erigon 配置
-    const erigonConfigTemplate = this.readTemplate('cdk-erigon/config.yml');
+    const erigonConfigTemplate = this.readTemplate('cdk-erigon/config.toml');
     const erigonConfig = this.renderTemplate(erigonConfigTemplate, {
       ...this.config,
       ...this.contractAddresses
     });
 
     // 写入配置文件
-    const configPath = path.join(this.workDir, 'build', 'config.yml');
-    writeFileSync(configPath, erigonConfig);
+    this.writeConfig('sequencer-config.toml', erigonConfig);
 
-    // 3. 启动节点服务
-    await this.startServices('node');
-    await this.waitForHealthy('node');
+    // 3. 创建 chainspec 文件
+    const chainspecTemplate = this.readTemplate('cdk-erigon/chainspec.json');
+    const chainspecConfig = this.renderTemplate(chainspecTemplate, {
+      ...this.config,
+      ...this.contractAddresses
+    });
+
+    // 写入 chainspec 文件
+    this.writeConfig('chainspec.json', chainspecConfig);
+
+    // 4. 创建 keystore 文件
+    const keystoreTemplate = this.readTemplate('cdk-erigon/sequencer.keystore');
+    const keystoreConfig = this.renderTemplate(keystoreTemplate, {
+      ...this.config,
+      ...this.contractAddresses
+    });
+
+    // 写入 keystore 文件
+    this.writeConfig('sequencer.keystore', keystoreConfig);
+
+    // 5. 启动服务
+    await this.startServices('core');
+    await this.waitForHealthy('core');
   }
 
   private async deployStatelessExecutor(): Promise<void> {
@@ -180,8 +193,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     });
 
     // 写入配置文件
-    const configPath = path.join(this.workDir, 'build', 'executor-config.json');
-    writeFileSync(configPath, executorConfig);
+    this.writeConfig('executor-config.json', executorConfig);
 
     // 启动执行器服务
     await this.startServices('core');
@@ -199,8 +211,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     });
 
     // 写入配置文件
-    const configPath = path.join(this.workDir, 'build', 'dac-config.toml');
-    writeFileSync(configPath, dacConfig);
+    this.writeConfig('dac-config.toml', dacConfig);
 
     // 启动 DAC 服务
     await this.startServices('node');
@@ -211,15 +222,139 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     return this.config.consensus_contract_type === 'cdk-validium';
   }
 
-  private readTemplate(templatePath: string): string {
-    return readFileSync(path.join(this.workDir, 'templates', templatePath), 'utf8');
+  private async prepareProverConfig(proverType: string): Promise<void> {
+    const template = this.readTemplate(`${proverType}-prover-config.toml`);
+    const config = this.renderTemplate(template, {
+      PROVER_PRIVATE_KEY: this.config.accounts.zkevm_l2_proofsigner_private_key,
+      PROVER_OPERATOR: this.config.accounts.zkevm_l2_proofsigner_address,
+      PROVER_OPERATOR_COMMIT_DELAY: this.config.prover?.prover_config?.executor_port || 0,
+      PROVER_OPERATOR_PROOF_DELAY: this.config.prover?.prover_config?.hash_db_port || 0,
+      PROVER_OPERATOR_COMMIT_SLOT_SIZE: 1,
+      PROVER_OPERATOR_PROOF_SLOT_SIZE: 1,
+      PROVER_OPERATOR_COMMIT_PROOF_RATIO: 1,
+    });
+    this.writeConfig(`${proverType}-prover-config.toml`, config);
   }
 
-  private renderTemplate(template: string, data: Record<string, unknown>): string {
-    let result = template;
-    for (const [key, value] of Object.entries(data)) {
-      result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value));
-    }
-    return result;
+  private async prepareSequencerConfig(): Promise<void> {
+    const template = this.readTemplate('sequencer-config.toml');
+    const config = this.renderTemplate(template, {
+      SEQUENCER_PRIVATE_KEY: this.config.accounts.zkevm_l2_sequencer_private_key,
+      SEQUENCER_OPERATOR: this.config.accounts.zkevm_l2_sequencer_address,
+      SEQUENCER_OPERATOR_COMMIT_DELAY: this.config.prover?.prover_config?.executor_port || 0,
+      SEQUENCER_OPERATOR_PROOF_DELAY: this.config.prover?.prover_config?.hash_db_port || 0,
+      SEQUENCER_OPERATOR_COMMIT_SLOT_SIZE: 1,
+      SEQUENCER_OPERATOR_PROOF_SLOT_SIZE: 1,
+      SEQUENCER_OPERATOR_COMMIT_PROOF_RATIO: 1,
+    });
+    this.writeConfig('sequencer-config.toml', config);
+  }
+
+  private async prepareValidatorConfig(): Promise<void> {
+    const template = this.readTemplate('validator-config.toml');
+    const config = this.renderTemplate(template, {
+      VALIDATOR_PRIVATE_KEY: this.config.accounts.zkevm_l2_admin_private_key,
+      VALIDATOR_OPERATOR: this.config.accounts.zkevm_l2_admin_address,
+    });
+    this.writeConfig('validator-config.toml', config);
+  }
+
+  private async prepareWitnessConfig(): Promise<void> {
+    const template = this.readTemplate('witness-config.toml');
+    const config = this.renderTemplate(template, {
+      WITNESS_PRIVATE_KEY: this.config.accounts.zkevm_l2_loadtest_private_key,
+      WITNESS_OPERATOR: this.config.accounts.zkevm_l2_loadtest_address,
+    });
+    this.writeConfig('witness-config.toml', config);
+  }
+
+  private async prepareL1Config(): Promise<void> {
+    const template = this.readTemplate('l1-config.toml');
+    const config = this.renderTemplate(template, {
+      L1_PRIVATE_KEY: this.config.accounts.zkevm_l2_l1testing_private_key,
+      L1_OPERATOR: this.config.accounts.zkevm_l2_l1testing_address,
+    });
+    this.writeConfig('l1-config.toml', config);
+  }
+
+  private async prepareL2Config(): Promise<void> {
+    const template = this.readTemplate('l2-config.toml');
+    const config = this.renderTemplate(template, {
+      L2_PRIVATE_KEY: this.config.accounts.zkevm_l2_claimtxmanager_private_key,
+      L2_OPERATOR: this.config.accounts.zkevm_l2_claimtxmanager_address,
+    });
+    this.writeConfig('l2-config.toml', config);
+  }
+
+  private async prepareL3Config(): Promise<void> {
+    const template = this.readTemplate('l3-config.toml');
+    const config = this.renderTemplate(template, {
+      L3_PRIVATE_KEY: this.config.accounts.zkevm_l2_timelock_private_key,
+      L3_OPERATOR: this.config.accounts.zkevm_l2_timelock_address,
+    });
+    this.writeConfig('l3-config.toml', config);
+  }
+
+  private async prepareL4Config(): Promise<void> {
+    const template = this.readTemplate('l4-config.toml');
+    const config = this.renderTemplate(template, {
+      L4_PRIVATE_KEY: this.config.accounts.zkevm_l2_agglayer_private_key,
+      L4_OPERATOR: this.config.accounts.zkevm_l2_agglayer_address,
+    });
+    this.writeConfig('l4-config.toml', config);
+  }
+
+  private async prepareL5Config(): Promise<void> {
+    const template = this.readTemplate('l5-config.toml');
+    const config = this.renderTemplate(template, {
+      L5_PRIVATE_KEY: this.config.accounts.zkevm_l2_dac_private_key,
+      L5_OPERATOR: this.config.accounts.zkevm_l2_dac_address,
+    });
+    this.writeConfig('l5-config.toml', config);
+  }
+
+  private async prepareL6Config(): Promise<void> {
+    const template = this.readTemplate('l6-config.toml');
+    const config = this.renderTemplate(template, {
+      L6_PRIVATE_KEY: this.config.accounts.zkevm_l2_proofsigner_private_key,
+      L6_OPERATOR: this.config.accounts.zkevm_l2_proofsigner_address,
+    });
+    this.writeConfig('l6-config.toml', config);
+  }
+
+  private async prepareL7Config(): Promise<void> {
+    const template = this.readTemplate('l7-config.toml');
+    const config = this.renderTemplate(template, {
+      L7_PRIVATE_KEY: this.config.accounts.zkevm_l2_l1testing_private_key,
+      L7_OPERATOR: this.config.accounts.zkevm_l2_l1testing_address,
+    });
+    this.writeConfig('l7-config.toml', config);
+  }
+
+  private async prepareL8Config(): Promise<void> {
+    const template = this.readTemplate('l8-config.toml');
+    const config = this.renderTemplate(template, {
+      L8_PRIVATE_KEY: this.config.accounts.zkevm_l2_claimsponsor_private_key,
+      L8_OPERATOR: this.config.accounts.zkevm_l2_claimsponsor_address,
+    });
+    this.writeConfig('l8-config.toml', config);
+  }
+
+  private async prepareL9Config(): Promise<void> {
+    const template = this.readTemplate('l9-config.toml');
+    const config = this.renderTemplate(template, {
+      L9_PRIVATE_KEY: this.config.accounts.zkevm_l2_aggoracle_private_key,
+      L9_OPERATOR: this.config.accounts.zkevm_l2_aggoracle_address,
+    });
+    this.writeConfig('l9-config.toml', config);
+  }
+
+  private async prepareL10Config(): Promise<void> {
+    const template = this.readTemplate('l10-config.toml');
+    const config = this.renderTemplate(template, {
+      L10_PRIVATE_KEY: this.config.accounts.zkevm_l2_claimtx_private_key,
+      L10_OPERATOR: this.config.accounts.zkevm_l2_claimtx_address,
+    });
+    this.writeConfig('l10-config.toml', config);
   }
 } 
