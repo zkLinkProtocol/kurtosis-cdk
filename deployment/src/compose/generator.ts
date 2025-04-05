@@ -164,7 +164,7 @@ export class ComposeGenerator {
       ZKEVM_BRIDGE_UI_PORT: this.config.zkevmBridgeUiPort,
       
       // Agglayer配置
-      AGGLAYER_IMAGE: this.config.agglayerImage,
+      AGGLAYER_IMAGE: this.config.agglayerImage || '',
       AGGLAYER_PROVER_PORT: this.config.agglayerProverPort,
       AGGLAYER_PROVER_METRICS_PORT: this.config.agglayerProverMetricsPort,
       AGGLAYER_READRPC_PORT: this.config.agglayerReadrpcPort,
@@ -175,14 +175,14 @@ export class ComposeGenerator {
       AGGLAYER_PROVER_PRIMARY_PROVER: this.config.agglayerProverPrimaryProver || 'mock-prover',
       
       // 镜像配置
-      ZKEVM_CONTRACTS_IMAGE: this.config.zkevmContractsImage,
-      ZKEVM_PROVER_IMAGE: this.config.zkevmProverImage,
-      CDK_ERIGON_NODE_IMAGE: this.config.cdkErigonNodeImage,
-      ZKEVM_POOL_MANAGER_IMAGE: this.config.zkevmPoolManagerImage,
-      CDK_NODE_IMAGE: this.config.cdkNodeImage,
-      ZKEVM_DA_IMAGE: this.config.zkevmDaImage,
-      ZKEVM_BRIDGE_SERVICE_IMAGE: this.config.zkevmBridgeServiceImage,
-      ZKEVM_BRIDGE_UI_IMAGE: this.config.zkevmBridgeUiImage
+      ZKEVM_CONTRACTS_IMAGE: this.config.zkevmContractsImage || 'hermeznetwork/zkevm-contracts:v10.0.0-rc.3-fork.12',
+      ZKEVM_PROVER_IMAGE: this.config.zkevmProverImage || 'hermeznetwork/zkevm-prover:v8.0.0-RC16-fork.12',
+      CDK_ERIGON_NODE_IMAGE: this.config.cdkErigonNodeImage || 'hermeznetwork/cdk-erigon:v2.61.19',
+      ZKEVM_POOL_MANAGER_IMAGE: this.config.zkevmPoolManagerImage || 'hermeznetwork/zkevm-pool-manager:v0.1.2',
+      CDK_NODE_IMAGE: this.config.cdkNodeImage || 'ghcr.io/0xpolygon/cdk:0.5.3-rc1',
+      ZKEVM_DA_IMAGE: this.config.zkevmDaImage || 'ghcr.io/0xpolygon/cdk-data-availability:0.0.13',
+      ZKEVM_BRIDGE_SERVICE_IMAGE: this.config.zkevmBridgeServiceImage || 'hermeznetwork/zkevm-bridge-service:v0.1.2',
+      ZKEVM_BRIDGE_UI_IMAGE: this.config.zkevmBridgeUiImage || 'hermeznetwork/zkevm-bridge-ui:v0.1.2'
     };
 
     return Object.entries(envVars)
@@ -194,7 +194,7 @@ export class ComposeGenerator {
    * 读取模板文件
    */
   private readTemplate(templateName: string): string {
-    const templatePath = path.join(this.templateDir, templateName);
+    const templatePath = path.join(this.templateDir, 'docker-compose', templateName);
     return fs.readFileSync(templatePath, 'utf8');
   }
 
@@ -207,7 +207,8 @@ export class ComposeGenerator {
       if (value === undefined || value === null) {
         return '';
       }
-      return String(value);
+      // 确保字符串值被正确引用
+      return typeof value === 'string' ? value : String(value);
     });
   }
 
@@ -248,10 +249,20 @@ export class ComposeGenerator {
     };
 
     // 替换变量
-    const variables = Object.entries(this.config).reduce((acc, [key, value]) => {
-      acc[key.toUpperCase()] = value;
-      return acc;
-    }, {} as Record<string, any>);
+    const variables = {
+      ...Object.entries(this.config).reduce((acc, [key, value]) => {
+        acc[key.toUpperCase()] = value;
+        return acc;
+      }, {} as Record<string, any>),
+      // 添加环境变量
+      ...envContent.split('\n').reduce((acc, line) => {
+        const [key, value] = line.split('=');
+        if (key && value) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, any>)
+    };
 
     const processedTemplates = Object.entries(templates).reduce((acc, [key, template]) => {
       acc[key] = this.replaceVariables(template, variables);
@@ -283,10 +294,20 @@ export class ComposeGenerator {
     const template = this.readTemplate(templateName);
 
     // 替换变量
-    const variables = Object.entries(this.config).reduce((acc, [key, value]) => {
-      acc[key.toUpperCase()] = value;
-      return acc;
-    }, {} as Record<string, any>);
+    const variables = {
+      ...Object.entries(this.config).reduce((acc, [key, value]) => {
+        acc[key.toUpperCase()] = value;
+        return acc;
+      }, {} as Record<string, any>),
+      // 添加环境变量
+      ...envContent.split('\n').reduce((acc, line) => {
+        const [key, value] = line.split('=');
+        if (key && value) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, any>)
+    };
 
     const processedTemplate = this.replaceVariables(template, variables);
 
@@ -370,12 +391,12 @@ export const DEFAULT_CONFIG: ComposeConfig = {
   agglayerProverPrimaryProver: 'mock-prover',
   
   // 镜像配置
-  zkevmContractsImage: 'leovct/zkevm-contracts:v10.0.0-rc.3-fork.12',
+  zkevmContractsImage: 'hermeznetwork/zkevm-contracts:v10.0.0-rc.3-fork.12',
   zkevmProverImage: 'hermeznetwork/zkevm-prover:v8.0.0-RC16-fork.12',
   cdkErigonNodeImage: 'hermeznetwork/cdk-erigon:v2.61.19',
   zkevmPoolManagerImage: 'hermeznetwork/zkevm-pool-manager:v0.1.2',
   cdkNodeImage: 'ghcr.io/0xpolygon/cdk:0.5.3-rc1',
   zkevmDaImage: 'ghcr.io/0xpolygon/cdk-data-availability:0.0.13',
-  zkevmBridgeServiceImage: 'hermeznetwork/zkevm-bridge-service:v0.6.0-RC15',
-  zkevmBridgeUiImage: 'leovct/zkevm-bridge-ui:multi-network'
+  zkevmBridgeServiceImage: 'hermeznetwork/zkevm-bridge-service:v0.1.2',
+  zkevmBridgeUiImage: 'hermeznetwork/zkevm-bridge-ui:v0.1.2'
 }; 

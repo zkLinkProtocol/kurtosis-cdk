@@ -1,21 +1,25 @@
-import { CDKDeployer } from './deployer';
+import * as path from 'path';
 import { ConfigLoader } from './utils/config-loader';
+import { CDKDeployer } from './deployer';
+import { Logger } from './utils/logger';
 
 async function main() {
   try {
-    // 获取配置文件路径(从命令行参数)
-    const configPath = process.argv[2];
-    if (!configPath) {
-      console.error('请指定配置文件路径');
-      process.exit(1);
-    }
-
-    // 加载配置
-    const { config, stages } = ConfigLoader.load(configPath);
-
+    // 获取配置文件路径
+    const configPath = process.argv[2] || path.join(__dirname, '../default-config.yml');
+    
+    // 创建日志记录器
+    const logger = new Logger();
+    
+    // 加载配置文件
+    const config = ConfigLoader.load(configPath);
+    
+    // 设置日志级别
+    logger.setLevel(config.global_log_level);
+    
     // 创建部署器
-    const deployer = new CDKDeployer(config, stages);
-
+    const deployer = new CDKDeployer(config, logger);
+    
     // 执行部署
     await deployer.deploy();
   } catch (error) {

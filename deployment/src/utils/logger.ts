@@ -1,9 +1,13 @@
 import { LogLevel } from '../types/config';
 
 export class Logger {
-  private level: LogLevel;
+  private level: LogLevel = 'info';
 
   constructor(level: LogLevel = 'info') {
+    this.level = level;
+  }
+
+  setLevel(level: LogLevel): void {
     this.level = level;
   }
 
@@ -18,8 +22,15 @@ export class Logger {
     return priorities[level];
   }
 
-  private shouldLog(messageLevel: LogLevel): boolean {
-    return this.getLogLevelPriority(messageLevel) <= this.getLogLevelPriority(this.level);
+  private shouldLog(level: LogLevel): boolean {
+    const levels: Record<LogLevel, number> = {
+      error: 0,
+      warn: 1,
+      info: 2,
+      debug: 3,
+      trace: 4
+    };
+    return this.getLogLevelPriority(level) <= this.getLogLevelPriority(this.level);
   }
 
   private formatMessage(level: string, message: string, ...args: any[]): string {

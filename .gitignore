@@ -29,3 +29,10 @@ templates/contract-deploy/dynamic-kurtosis-allocs.json
 templates/contract-deploy/dynamic-kurtosis-conf.json
 templates/contract-deploy/genesis.json
 anvil_state.json
+
+# 部署配置
+deployment/build/
+deployment/deploy-cdk-to-sepolia.yml
+deployment/deployment.log
+deployment/prover/
+deployment/logs

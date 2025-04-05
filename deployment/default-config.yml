@@ -1,0 +1,255 @@
+deployment_stages:
+  deploy_l1: true
+  deploy_zkevm_contracts_on_l1: true
+  deploy_databases: true
+  deploy_cdk_central_environment: true
+  deploy_cdk_bridge_infra: true
+  deploy_cdk_bridge_ui: true
+  deploy_agglayer: true
+  deploy_cdk_erigon_node: true
+  deploy_optimism_rollup: false
+  deploy_op_succinct: false
+  deploy_l2_contracts: true
+
+# Database settings
+database:
+  host: "localhost"
+  port: 5432
+  master_db: "postgres"
+  master_user: "postgres"
+  master_password: "postgres123"
+  use_remote: false
+
+# Prover settings
+prover:
+  deploy_prover: true
+  prover_config:
+    database:
+      prover_db_host: "localhost"
+      prover_db_port: 5432
+      prover_db_name: "prover_db"
+      prover_db_user: "prover"
+      prover_db_password: "prover123"
+    executor_port: 50071
+    hash_db_port: 50061
+    metrics_port: 9092
+
+args:
+  # Basic settings
+  deployment_suffix: "-001"
+  verbosity: "info"
+  global_log_level: "info"
+  sequencer_type: "erigon"
+  consensus_contract_type: "cdk-validium"
+  additional_services: []
+  polygon_zkevm_explorer: "https://explorer.private/"
+  l1_explorer_url: "https://sepolia.etherscan.io/"
+
+  # Images
+  aggkit_image: "ghcr.io/agglayer/aggkit:0.1.0-beta4"
+  agglayer_image: "ghcr.io/agglayer/agglayer:0.3.0-rc.5"
+  cdk_erigon_node_image: "hermeznetwork/cdk-erigon:v2.61.19"
+  cdk_node_image: "ghcr.io/0xpolygon/cdk:0.5.3-rc1"
+  cdk_validium_node_image: "ghcr.io/0xpolygon/cdk-validium-node:0.6.4-cdk.10"
+  zkevm_bridge_proxy_image: "haproxy:3.1-bookworm"
+  zkevm_bridge_service_image: "hermeznetwork/zkevm-bridge-service:v0.6.0-RC15"
+  zkevm_bridge_ui_image: "leovct/zkevm-bridge-ui:multi-network"
+  zkevm_da_image: "ghcr.io/0xpolygon/cdk-data-availability:0.0.13"
+  zkevm_contracts_image: "leovct/zkevm-contracts:v10.0.0-rc.3-fork.12"
+  zkevm_node_image: "hermeznetwork/zkevm-node:v0.7.3"
+  zkevm_pool_manager_image: "hermeznetwork/zkevm-pool-manager:v0.1.2"
+  zkevm_prover_image: "hermeznetwork/zkevm-prover:v8.0.0-RC16-fork.12"
+  zkevm_sequence_sender_image: "hermeznetwork/zkevm-sequence-sender:v0.2.4"
+  anvil_image: "ghcr.io/foundry-rs/foundry:v1.0.0"
+  mitm_image: "mitmproxy/mitmproxy:11.1.3"
+  op_succinct_contract_deployer_image: "jhkimqd/op-succinct-contract-deployer:v0.0.4-agglayer"
+  op_succinct_server_image: "ghcr.io/succinctlabs/op-succinct/succinct-proposer:sha-cb18ac0"
+  op_succinct_proposer_image: "ghcr.io/succinctlabs/op-succinct/op-proposer:sha-cb18ac0"
+
+  # Ports
+  agglayer_grpc_port: 4443
+  agglayer_readrpc_port: 4444
+  agglayer_prover_port: 4445
+  agglayer_admin_port: 4446
+  agglayer_metrics_port: 9092
+  agglayer_prover_metrics_port: 9093
+  prometheus_port: 9091
+  zkevm_aggregator_port: 50081
+  zkevm_bridge_grpc_port: 9090
+  zkevm_bridge_rpc_port: 8080
+  zkevm_bridge_ui_port: 80
+  zkevm_bridge_metrics_port: 8090
+  zkevm_dac_port: 8484
+  zkevm_data_streamer_port: 6900
+  zkevm_executor_port: 50071
+  zkevm_hash_db_port: 50061
+  zkevm_pool_manager_port: 8545
+  zkevm_pprof_port: 6060
+  zkevm_rpc_http_port: 8123
+  zkevm_rpc_ws_port: 8133
+  zkevm_cdk_node_port: 5576
+  blockscout_frontend_port: 3000
+  anvil_port: 8545
+  mitm_port: 8234
+  op_succinct_server_port: 3000
+  op_succinct_proposer_port: 7300
+
+  # L1 settings
+  l1_engine: "geth"
+  l1_chain_id: 271828
+  l1_preallocated_mnemonic: "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
+  l1_rpc_url: "http://el-1-geth-lighthouse:8545"
+  l1_ws_url: "ws://el-1-geth-lighthouse:8546"
+  l1_beacon_url: "http://cl-1-lighthouse-geth:4000"
+  l1_additional_services: []
+  l1_preset: "minimal"
+  l1_seconds_per_slot: 2
+  pectra_enabled: false
+  l1_funding_amount: "1000000ether"
+  l1_participants_count: 1
+  l1_deploy_lxly_bridge_and_call: true
+  l1_anvil_block_time: 1
+  l1_anvil_slots_in_epoch: 1
+  use_previously_deployed_contracts: false
+  erigon_datadir_archive: null
+  anvil_state_file: null
+
+  # MITM proxy settings
+  mitm_proxied_components:
+    agglayer: false
+    aggkit: false
+    bridge: false
+    dac: false
+    erigon-sequencer: false
+    erigon-rpc: false
+    cdk-node: false
+
+  # L2 settings
+  l2_accounts_to_fund: 10
+  l2_funding_amount: "100ether"
+  l2_deploy_deterministic_deployment_proxy: true
+  l2_deploy_lxly_bridge_and_call: true
+  chain_name: "zklink-test"
+  sovereign_chain_name: "op-sovereign"
+
+  # Rollup settings
+  zkevm_l2_keystore_password: "pSnv6Dh5s9ahuzGzH9RoCDrKAMddaX3m"
+  zkevm_rollup_chain_id: 10101
+  zkevm_rollup_id: 1
+  zkevm_use_real_verifier: false
+  verifier_program_vkey: "0x0062c685702e0582d900f3a19521270c92a58e2588230c4a5cf3b45103f4a512"
+  erigon_strict_mode: true
+  gas_token_enabled: false
+  gas_token_address: "0x0000000000000000000000000000000000000000"
+  use_dynamic_ports: true
+  enable_normalcy: false
+  agglayer_prover_sp1_key: null
+  agglayer_prover_network_url: "https://rpc.production.succinct.xyz"
+  agglayer_prover_primary_prover: "mock-prover"
+  agglayer_grpc_url: "http://agglayer:4443"
+  agglayer_readrpc_url: "http://agglayer:4444"
+  zkevm_path_rw_data: "/tmp/"
+  op_el_rpc_url: "http://op-el-1-op-geth-op-node-001:8545"
+  op_cl_rpc_url: "http://op-cl-1-op-node-op-geth-001:8547"
+  op_succinct_mock: false
+
+  # Additional services
+  blockscout_params:
+    blockscout_public_port: 3000
+
+  # Account settings
+  zkevm_l2_sequencer_address: "0x5b06837A43bdC3dD9F114558DAf4B26ed49842Ed"
+  zkevm_l2_sequencer_private_key: "0x183c492d0ba156041a7f31a1b188958a7a22eebadca741a7fe64436092dc3181"
+  zkevm_l2_aggregator_address: "0xCae5b68Ff783594bDe1b93cdE627c741722c4D4d"
+  zkevm_l2_aggregator_private_key: "0x2857ca0e7748448f3a50469f7ffe55cde7299d5696aedd72cfe18a06fb856970"
+  zkevm_l2_claimtxmanager_address: "0x5f5dB0D4D58310F53713eF4Df80ba6717868A9f8"
+  zkevm_l2_claimtxmanager_private_key: "0x8d5c9ecd4ba2a195db3777c8412f8e3370ae9adffac222a54a84e116c7f8b934"
+  zkevm_l2_timelock_address: "0x130aA39Aa80407BD251c3d274d161ca302c52B7A"
+  zkevm_l2_timelock_private_key: "0x80051baf5a0a749296b9dcdb4a38a264d2eea6d43edcf012d20b5560708cf45f"
+  zkevm_l2_admin_address: "0xE34aaF64b29273B7D567FCFc40544c014EEe9970"
+  zkevm_l2_admin_private_key: "0x12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"
+  zkevm_l2_loadtest_address: "0x81457240ff5b49CaF176885ED07e3E7BFbE9Fb81"
+  zkevm_l2_loadtest_private_key: "0xd7df6d64c569ffdfe7c56e6b34e7a2bdc7b7583db74512a9ffe26fe07faaa5de"
+  zkevm_l2_agglayer_address: "0x351e560852ee001d5D19b5912a269F849f59479a"
+  zkevm_l2_agglayer_private_key: "0x1d45f90c0a9814d8b8af968fa0677dab2a8ff0266f33b136e560fe420858a419"
+  zkevm_l2_dac_address: "0x5951F5b2604c9B42E478d5e2B2437F44073eF9A6"
+  zkevm_l2_dac_private_key: "0x85d836ee6ea6f48bae27b31535e6fc2eefe056f2276b9353aafb294277d8159b"
+  zkevm_l2_proofsigner_address: "0x7569cc70950726784c8D3bB256F48e43259Cb445"
+  zkevm_l2_proofsigner_private_key: "0x77254a70a02223acebf84b6ed8afddff9d3203e31ad219b2bf900f4780cf9b51"
+  zkevm_l2_l1testing_address: "0xfa291C5f54E4669aF59c6cE1447Dc0b3371EF046"
+  zkevm_l2_l1testing_private_key: "0x1324200455e437cd9d9dc4aa61c702f06fb5bc495dc8ad94ae1504107a216b59"
+  zkevm_l2_claimsponsor_address: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+  zkevm_l2_claimsponsor_private_key: "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+  zkevm_l2_aggoracle_address: "0xc653eCD4AC5153a3700Fb13442Bcf00A691cca16"
+  zkevm_l2_aggoracle_private_key: "0xa574853f4757bfdcbb59b03635324463750b27e16df897f3d00dc6bef2997ae0"
+  zkevm_l2_sovereignadmin_address: "0x635243A11B41072264Df6c9186e3f473402F94e9"
+  zkevm_l2_sovereignadmin_private_key: "0x986b325f6f855236b0b04582a19fe0301eeecb343d0f660c61805299dbf250eb"
+  zkevm_l2_claimtx_address: "0xE0005545D8b2a84c2380fAaa2201D92345Bd0F6F"
+  zkevm_l2_claimtx_private_key: "0x01a2cdedc257344b84a53d2056a85ad58fdf51e8f65d9259028d89595d4768a8"
+
+  # Permissionless node settings
+  trusted_sequencer_node_uri: "zkevm-node-sequencer-001:6900"
+  zkevm_aggregator_host: "zkevm-node-aggregator-001"
+  genesis_file: "templates/permissionless-node/genesis.json"
+  sovereign_genesis_file: "templates/sovereign-genesis.json"
+
+optimism_package:
+  source: "github.com/ethpandaops/optimism-package/main.star@884f4eb813884c4c8e5deead6ca4e0c54b85da90"
+  predeployed_contracts: false
+  chains:
+    - participants:
+        - el_type: "op-geth"
+          el_image: "us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v1.101500.0-rc.3"
+          cl_type: "op-node"
+          cl_image: "us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.11.0-rc.2"
+          count: 1
+      network_params:
+        name: "001"
+        network_id: "10101"
+        seconds_per_slot: 1
+
+# Static ports configuration
+static_ports:
+  # L1 static ports (50000-50999)
+  l1_el_start_port: 50000
+  l1_cl_start_port: 50010
+  l1_vc_start_port: 50020
+  l1_additional_services_start_port: 50100
+  
+  # L2 static ports (51000-51999)
+  # Agglayer (51000-51099)
+  agglayer_start_port: 51000
+  agglayer_prover_start_port: 51010
+  
+  # CDK node (51100-51199)
+  cdk_node_start_port: 51100
+  
+  # Bridge services (51200-51299)
+  zkevm_bridge_service_start_port: 51200
+  zkevm_bridge_ui_start_port: 51210
+  reverse_proxy_start_port: 51220
+  
+  # Databases (51300-51399)
+  database_start_port: 51300
+  pless_database_start_port: 51310
+  
+  # Pool manager (51400-51499)
+  zkevm_pool_manager_start_port: 51400
+  
+  # DAC (51500-51599)
+  zkevm_dac_start_port: 51500
+  
+  # ZkEVM Provers (51600-51699)
+  zkevm_prover_start_port: 51600
+  zkevm_executor_start_port: 51610
+  zkevm_stateless_executor_start_port: 51620
+  
+  # CDK erigon (51700-51799)
+  cdk_erigon_sequencer_start_port: 51700
+  cdk_erigon_rpc_start_port: 51710
+  
+  # L2 additional services (52000-52999)
+  arpeggio_start_port: 52000
+  blutgang_start_port: 52010
+  erpc_start_port: 52020
+  panoptichain_start_port: 52030 
