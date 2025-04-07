@@ -96,6 +96,11 @@ export class ComposeGenerator {
     this.config = config;
     this.templateDir = templateDir;
     this.outputDir = outputDir;
+
+    // 确保输出目录存在
+    if (!fs.existsSync(this.outputDir)) {
+      fs.mkdirSync(this.outputDir, { recursive: true });
+    }
   }
 
   /**
@@ -104,7 +109,7 @@ export class ComposeGenerator {
   private generateEnvFile(): string {
     const envVars = {
       // 基础配置
-      BUILD_DIR: this.config.buildDir,
+      BUILD_DIR: this.outputDir,
       DATA_DIR: this.config.dataDir,
       NETWORK: this.config.network,
       
@@ -202,12 +207,14 @@ export class ComposeGenerator {
    * 替换模板中的变量
    */
   private replaceVariables(template: string, variables: Record<string, any>): string {
+    // 添加构建目录变量
+    variables.BUILD_DIR = this.outputDir;
+    
     return template.replace(/\${(\w+)}/g, (match, key) => {
       const value = variables[key];
       if (value === undefined || value === null) {
         return '';
       }
-      // 确保字符串值被正确引用
       return typeof value === 'string' ? value : String(value);
     });
   }
@@ -280,11 +287,6 @@ export class ComposeGenerator {
    * 按阶段生成docker-compose文件
    */
   public async generateByStage(stage: 'contracts' | 'db' | 'core' | 'node' | 'bridge' | 'agglayer' | 'monitoring' | 'all'): Promise<void> {
-    // 确保输出目录存在
-    if (!fs.existsSync(this.outputDir)) {
-      fs.mkdirSync(this.outputDir, { recursive: true });
-    }
-
     // 生成环境变量文件
     const envContent = this.generateEnvFile();
     fs.writeFileSync(path.join(this.outputDir, '.env'), envContent);

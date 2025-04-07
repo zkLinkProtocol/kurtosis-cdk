@@ -238,12 +238,71 @@ export interface DeploymentConfig {
 
   // 数据库配置
   database?: {
+    // 主数据库配置
     master_db: string;
     master_user: string;
     master_password: string;
     port: number;
     use_remote?: boolean;
     host?: string;
+
+    // 中心环境数据库配置
+    aggregator_db?: {
+      name: string;
+      user: string;
+      password: string;
+    };
+    aggregator_syncer_db?: {
+      name: string;
+      user: string;
+      password: string;
+    };
+    bridge_db?: {
+      name: string;
+      user: string;
+      password: string;
+    };
+    dac_db?: {
+      name: string;
+      user: string;
+      password: string;
+    };
+    sovereign_bridge_db?: {
+      name: string;
+      user: string;
+      password: string;
+    };
+
+    // Prover数据库配置
+    prover_db?: {
+      name: string;
+      user: string;
+      password: string;
+    };
+
+    // zkEVM节点数据库配置
+    event_db?: {
+      name: string;
+      user: string;
+      password: string;
+    };
+    pool_db?: {
+      name: string;
+      user: string;
+      password: string;
+    };
+    state_db?: {
+      name: string;
+      user: string;
+      password: string;
+    };
+
+    // CDK Erigon数据库配置
+    pool_manager_db?: {
+      name: string;
+      user: string;
+      password: string;
+    };
   };
 
   // Prover配置

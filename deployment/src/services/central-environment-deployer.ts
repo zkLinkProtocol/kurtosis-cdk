@@ -88,10 +88,14 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     this.logger.info('部署 Prover...');
 
     // 准备 Prover 配置
-    const proverConfigTemplate = this.readTemplate('trusted-node/prover-config.json');
-    const proverConfig = this.renderTemplate(proverConfigTemplate, {
-      ...this.config,
-      ...this.contractAddresses,
+    const proverConfig = this.renderTemplate('trusted-node/prover-config.json', {
+      prover_db: {
+        host: this.config.database?.host || '127.0.0.1',
+        port: this.config.database?.port || 5432,
+        name: this.config.database?.prover_db?.name || 'prover_db',
+        user: this.config.database?.prover_db?.user || 'prover_user',
+        password: this.config.database?.prover_db?.password || 'redacted'
+      },
       // 如果有 Prover 专用配置,使用专用配置
       ...(this.config.prover?.prover_config || {})
     });
@@ -112,8 +116,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     }
 
     const genesisFile = this.config.genesis_file || 'default-genesis.json';
-    const genesisTemplate = this.readTemplate(genesisFile);
-    const genesisContent = this.renderTemplate(genesisTemplate, {});
+    const genesisContent = this.renderTemplate(genesisFile, {});
     
     this.writeConfig('genesis.json', genesisContent);
     return this.pathManager.getBuildPath('genesis.json');
@@ -123,8 +126,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     this.logger.info('部署 zkEVM 组件...');
 
     // 1. 创建节点配置
-    const nodeConfigTemplate = this.readTemplate('trusted-node/node-config.toml');
-    const nodeConfig = this.renderTemplate(nodeConfigTemplate, {
+    const nodeConfig = this.renderTemplate('trusted-node/node-config.toml', {
       ...this.config,
       is_cdk_validium: this.isCDKValidium()
     });
@@ -146,8 +148,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     }
 
     // 2. 创建 CDK Erigon 配置
-    const erigonConfigTemplate = this.readTemplate('cdk-erigon/config.toml');
-    const erigonConfig = this.renderTemplate(erigonConfigTemplate, {
+    const erigonConfig = this.renderTemplate('cdk-erigon/config.toml', {
       ...this.config,
       ...this.contractAddresses
     });
@@ -156,8 +157,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     this.writeConfig('sequencer-config.toml', erigonConfig);
 
     // 3. 创建 chainspec 文件
-    const chainspecTemplate = this.readTemplate('cdk-erigon/chainspec.json');
-    const chainspecConfig = this.renderTemplate(chainspecTemplate, {
+    const chainspecConfig = this.renderTemplate('cdk-erigon/chainspec.json', {
       ...this.config,
       ...this.contractAddresses
     });
@@ -166,8 +166,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     this.writeConfig('chainspec.json', chainspecConfig);
 
     // 4. 创建 keystore 文件
-    const keystoreTemplate = this.readTemplate('cdk-erigon/sequencer.keystore');
-    const keystoreConfig = this.renderTemplate(keystoreTemplate, {
+    const keystoreConfig = this.renderTemplate('cdk-erigon/sequencer.keystore', {
       ...this.config,
       ...this.contractAddresses
     });
@@ -184,10 +183,23 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     this.logger.info('部署无状态执行器...');
 
     // 准备执行器配置
-    const executorConfigTemplate = this.readTemplate('trusted-node/prover-config.json');
-    const executorConfig = this.renderTemplate(executorConfigTemplate, {
+    const executorConfig = this.renderTemplate('trusted-node/prover-config.json', {
       ...this.config,
       stateless_executor: true,
+      // 确保数据库配置正确传递
+      prover_db: {
+        hostname: this.config.database?.host || '127.0.0.1',
+        port: this.config.database?.port || 5432,
+        name: this.config.database?.prover_db?.name || 'prover_db',
+        user: this.config.database?.prover_db?.user || 'prover_user',
+        password: this.config.database?.prover_db?.password || 'redacted'
+      },
+      // 添加部署后缀
+      deployment_suffix: this.config.deployment_suffix || '',
+      // 确保端口配置正确传递
+      zkevm_executor_port: this.config.prover?.prover_config?.executor_port || 50071,
+      zkevm_hash_db_port: this.config.prover?.prover_config?.hash_db_port || 50061,
+      zkevm_aggregator_port: this.config.ports?.zkevm_aggregator_port || 50081,
       // 如果有 Prover 专用配置,使用专用配置
       ...(this.config.prover?.prover_config || {})
     });
@@ -204,8 +216,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     this.logger.info('部署 DAC...');
 
     // 创建 DAC 配置
-    const dacConfigTemplate = this.readTemplate('trusted-node/dac-config.toml');
-    const dacConfig = this.renderTemplate(dacConfigTemplate, {
+    const dacConfig = this.renderTemplate('trusted-node/dac-config.toml', {
       ...this.config,
       ...this.contractAddresses
     });
@@ -223,8 +234,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
   }
 
   private async prepareProverConfig(proverType: string): Promise<void> {
-    const template = this.readTemplate(`${proverType}-prover-config.toml`);
-    const config = this.renderTemplate(template, {
+    const config = this.renderTemplate(`${proverType}-prover-config.toml`, {
       PROVER_PRIVATE_KEY: this.config.accounts.zkevm_l2_proofsigner_private_key,
       PROVER_OPERATOR: this.config.accounts.zkevm_l2_proofsigner_address,
       PROVER_OPERATOR_COMMIT_DELAY: this.config.prover?.prover_config?.executor_port || 0,
@@ -237,8 +247,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
   }
 
   private async prepareSequencerConfig(): Promise<void> {
-    const template = this.readTemplate('sequencer-config.toml');
-    const config = this.renderTemplate(template, {
+    const config = this.renderTemplate('sequencer-config.toml', {
       SEQUENCER_PRIVATE_KEY: this.config.accounts.zkevm_l2_sequencer_private_key,
       SEQUENCER_OPERATOR: this.config.accounts.zkevm_l2_sequencer_address,
       SEQUENCER_OPERATOR_COMMIT_DELAY: this.config.prover?.prover_config?.executor_port || 0,
@@ -251,8 +260,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
   }
 
   private async prepareValidatorConfig(): Promise<void> {
-    const template = this.readTemplate('validator-config.toml');
-    const config = this.renderTemplate(template, {
+    const config = this.renderTemplate('validator-config.toml', {
       VALIDATOR_PRIVATE_KEY: this.config.accounts.zkevm_l2_admin_private_key,
       VALIDATOR_OPERATOR: this.config.accounts.zkevm_l2_admin_address,
     });
@@ -260,8 +268,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
   }
 
   private async prepareWitnessConfig(): Promise<void> {
-    const template = this.readTemplate('witness-config.toml');
-    const config = this.renderTemplate(template, {
+    const config = this.renderTemplate('witness-config.toml', {
       WITNESS_PRIVATE_KEY: this.config.accounts.zkevm_l2_loadtest_private_key,
       WITNESS_OPERATOR: this.config.accounts.zkevm_l2_loadtest_address,
     });
@@ -269,8 +276,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
   }
 
   private async prepareL1Config(): Promise<void> {
-    const template = this.readTemplate('l1-config.toml');
-    const config = this.renderTemplate(template, {
+    const config = this.renderTemplate('l1-config.toml', {
       L1_PRIVATE_KEY: this.config.accounts.zkevm_l2_l1testing_private_key,
       L1_OPERATOR: this.config.accounts.zkevm_l2_l1testing_address,
     });

@@ -50,22 +50,17 @@ export class ContractDeployer extends BaseDeployer {
   private async generateDeployScript(): Promise<void> {
     this.logger.info('生成部署脚本...');
 
-    // 1. 读取模板
-    const template = 'deploy.ts';
-    const templatePath = path.join(this.pathManager.getTemplatesDir(), 'contract-deploy', template);
-    const templateContent = readFileSync(templatePath, 'utf8');
-
-    // 2. 渲染模板
+    // 1. 渲染模板
     const contracts = this.extendedConfig.contracts || [];
-    const renderedContent = this.renderTemplate(templateContent, {
+    const renderedContent = this.renderTemplate('contract-deploy/deploy.ts', {
       contracts: contracts.map(this.formatContractConfig)
     });
 
-    // 3. 写入文件
-    const outputPath = this.pathManager.getBuildPath(template);
+    // 2. 写入文件
+    const outputPath = this.pathManager.getBuildPath('deploy.ts');
     writeFileSync(outputPath, renderedContent);
 
-    // 4. 编译脚本
+    // 3. 编译脚本
     execSync(`tsc ${outputPath} --esModuleInterop --target es2020 --module commonjs`, {
       stdio: 'inherit'
     });

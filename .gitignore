@@ -36,3 +36,5 @@ deployment/deploy-cdk-to-sepolia.yml
 deployment/deployment.log
 deployment/prover/
 deployment/logs
+deployment/dist
+deployment/coverage

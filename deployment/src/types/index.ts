@@ -1,5 +1,5 @@
 export * from './config';
-export * from './stages';
+export { DeploymentStages } from './stages';
 
 export interface ContractSetupAddresses {
   zkevm_rollup_fork_id: number;

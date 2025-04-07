@@ -3,7 +3,10 @@ import { execSync } from 'child_process';
 import { Logger } from '../utils/logger';
 import { DeploymentConfig } from '../types';
 import { ComposeGenerator } from '../compose/generator';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, accessSync, unlinkSync } from 'fs';
+import { constants } from 'fs';
+import * as TOML from '@iarna/toml';
+import { GoTemplateParser, detectFileFormat, FileFormat } from '../utils/template-parser';
 
 // 路径管理类
 export class PathManager {
@@ -74,12 +77,86 @@ export class PathManager {
 }
 
 export abstract class BaseDeployer {
-  protected readonly config: DeploymentConfig;
-  protected readonly logger: Logger;
-  protected readonly pathManager: PathManager;
-  protected readonly composeGenerator: ComposeGenerator;
+  protected config: DeploymentConfig;
+  protected logger: Logger;
+  protected pathManager: PathManager;
+  protected composeGenerator: ComposeGenerator;
 
   constructor(config: DeploymentConfig, logger: Logger) {
+    // 初始化默认数据库配置
+    const defaultDbConfig = {
+      master_db: 'master',
+      master_user: 'master_user',
+      master_password: 'master_password',
+      port: 5432,
+      use_remote: false,
+      host: '127.0.0.1',
+      
+      // 中心环境数据库配置
+      aggregator_db: {
+        name: 'aggregator_db',
+        user: 'aggregator_user',
+        password: 'redacted'
+      },
+      aggregator_syncer_db: {
+        name: 'aggregator_syncer_db',
+        user: 'aggregator_syncer_db_user',
+        password: 'redacted'
+      },
+      bridge_db: {
+        name: 'bridge_db',
+        user: 'bridge_user',
+        password: 'redacted'
+      },
+      dac_db: {
+        name: 'dac_db',
+        user: 'dac_user',
+        password: 'redacted'
+      },
+      sovereign_bridge_db: {
+        name: 'sovereign_bridge_db',
+        user: 'sovereign_bridge_user',
+        password: 'redacted'
+      },
+
+      // Prover数据库配置
+      prover_db: {
+        name: 'prover_db',
+        user: 'prover_user',
+        password: 'redacted'
+      },
+
+      // zkEVM节点数据库配置
+      event_db: {
+        name: 'event_db',
+        user: 'event_user',
+        password: 'redacted'
+      },
+      pool_db: {
+        name: 'pool_db',
+        user: 'pool_user',
+        password: 'redacted'
+      },
+      state_db: {
+        name: 'state_db',
+        user: 'state_user',
+        password: 'redacted'
+      },
+
+      // CDK Erigon数据库配置
+      pool_manager_db: {
+        name: 'pool_manager_db',
+        user: 'pool_manager_user',
+        password: 'redacted'
+      }
+    };
+
+    // 合并用户配置和默认配置
+    config.database = {
+      ...defaultDbConfig,
+      ...config.database
+    };
+
     this.config = config;
     this.logger = logger;
     this.pathManager = new PathManager();
@@ -267,23 +344,91 @@ export abstract class BaseDeployer {
    * 写入配置文件
    */
   protected writeConfig(filename: string, content: string): void {
-    writeFileSync(this.pathManager.getBuildPath(filename), content);
+    const filePath = this.pathManager.getBuildPath(filename);
+    try {
+      // 检查目录是否存在
+      const dir = path.dirname(filePath);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+
+      // 检查目录权限
+      try {
+        accessSync(dir, constants.W_OK);
+      } catch (error: any) {
+        throw new Error(`目录 ${dir} 没有写入权限: ${error.message}`);
+      }
+
+      // 如果文件已存在，先删除它
+      if (existsSync(filePath)) {
+        unlinkSync(filePath);
+      }
+
+      // 写入文件
+      writeFileSync(filePath, content);
+      
+      // 检查文件是否成功创建
+      if (!existsSync(filePath)) {
+        throw new Error(`配置文件 ${filename} 创建失败`);
+      }
+
+      // 检查文件内容
+      const writtenContent = readFileSync(filePath, 'utf8');
+      if (writtenContent !== content) {
+        throw new Error(`配置文件 ${filename} 内容验证失败`);
+      }
+      
+      this.logger.info(`配置文件 ${filename} 已生成: ${filePath}`);
+    } catch (error: any) {
+      const errorMessage = `写入配置文件 ${filename} 失败:\n` +
+        `路径: ${filePath}\n` +
+        `错误: ${error.message}\n` +
+        `堆栈: ${error.stack}`;
+      this.logger.error(errorMessage);
+      throw new Error(errorMessage);
+    }
   }
 
   /**
    * 渲染模板
+   * @param templatePath 模板文件路径
+   * @param data 模板数据
    */
-  protected renderTemplate(template: string, data: any): string {
-    // 支持 ${key} 格式
-    let result = template.replace(/\${(\w+)}/g, (match, key) => {
-      return data[key] !== undefined ? data[key].toString() : match;
-    });
-
-    // 支持 {{key}} 格式
-    result = result.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-      return data[key] !== undefined ? String(data[key]) : match;
-    });
-
-    return result;
+  protected renderTemplate(templatePath: string, data: any): string {
+    this.logger.info(`开始渲染模板: ${templatePath}`);
+    
+    try {
+      // 读取模板文件
+      const template = this.readTemplate(templatePath);
+      this.logger.debug(`模板内容长度: ${template.length} 字符`);
+      
+      // 检测文件格式
+      const format = detectFileFormat(templatePath, template);
+      this.logger.info(`检测到文件格式: ${format}`);
+      
+      if (format === FileFormat.UNKNOWN) {
+        this.logger.warn('无法确定模板格式，将按普通文本处理');
+      }
+      
+      // 记录模板数据的关键字段
+      this.logger.debug('模板数据包含以下字段:', Object.keys(data));
+      
+      // 创建解析器并解析模板
+      const parser = new GoTemplateParser(template, data, format, this.logger);
+      
+      try {
+        const result = parser.parse();
+        this.logger.info(`模板 ${templatePath} 渲染完成`);
+        this.logger.debug(`渲染结果长度: ${result.length} 字符`);
+        return result;
+      } catch (parseError: any) {
+        this.logger.error(`模板 ${templatePath} 渲染失败:`, parseError);
+        this.logger.error(`错误发生在处理以下数据时:`, JSON.stringify(data, null, 2));
+        throw parseError;
+      }
+    } catch (error: any) {
+      this.logger.error(`模板 ${templatePath} 处理失败:`, error);
+      throw error;
+    }
   }
 } 

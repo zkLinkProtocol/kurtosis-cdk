@@ -11,7 +11,7 @@ services:
       - "${ZKEVM_EXECUTOR_PORT}:50071"
       - "${ZKEVM_HASH_DB_PORT}:50061"
     volumes:
-      - ./build/executor-config.json:/etc/zkevm/stateless-executor-config.json
+      - ${BUILD_DIR}/executor-config.json:/etc/zkevm/stateless-executor-config.json
     healthcheck:
       test: ["CMD", "grpc_health_probe", "-addr=:50071"]
       interval: 10s
@@ -31,10 +31,10 @@ services:
       - "${ZKEVM_RPC_HTTP_PORT}:8123"
       - "${ZKEVM_RPC_WS_PORT}:8133"
     volumes:
-      - ./build/sequencer-config.toml:/app/config.toml
-      - ./build/chainspec.json:/app/chainspec.json
-      - ./data/sequencer:/data
-      - ./build/sequencer.keystore:/app/sequencer.keystore
+      - ${BUILD_DIR}/sequencer-config.toml:/app/config.toml
+      - ${BUILD_DIR}/chainspec.json:/app/chainspec.json
+      - ${DATA_DIR}/sequencer:/data
+      - ${BUILD_DIR}/sequencer.keystore:/app/sequencer.keystore
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8123"]
       interval: 10s
@@ -52,7 +52,7 @@ services:
     ports:
       - "${ZKEVM_POOL_MANAGER_PORT}:8545"
     volumes:
-      - ./build/pool-manager-config.toml:/etc/pool-manager/pool-manager-config.toml
+      - ${BUILD_DIR}/pool-manager-config.toml:/etc/pool-manager/pool-manager-config.toml
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8545"]
       interval: 10s
