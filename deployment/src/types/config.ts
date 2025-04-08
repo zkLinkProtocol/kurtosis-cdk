@@ -375,6 +375,8 @@ export interface DeploymentConfig {
   deployment_args: DeploymentArgs;
   database: DatabaseConfig;
   op_stack_args: OpStackArgs;
+  static_ports: StaticPorts;
+  default_supported_fork_ids: SupportedForkId[];
 }
 
 export interface CustomConfig extends
@@ -383,4 +385,18 @@ export interface CustomConfig extends
   DatabaseConfig,
   ProverConfig {
 
+}
+
+// Erigon 数据库配置助手类型
+export interface ErigonDatabaseHelper {
+  central_env_dbs: DatabaseConfig['central_env_dbs'];
+  prover_db: DatabaseConfig['prover_db'];
+  cdk_erigon_dbs: DatabaseConfig['cdk_erigon_dbs'];
+}
+
+// ZkEVM 数据库配置助手类型
+export interface ZkEvmDatabaseHelper {
+  central_env_dbs: DatabaseConfig['central_env_dbs'];
+  prover_db: DatabaseConfig['prover_db'];
+  zkevm_node_dbs: DatabaseConfig['zkevm_node_dbs'];
 }
