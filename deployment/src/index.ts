@@ -6,16 +6,18 @@ import { Logger } from './utils/logger';
 async function main() {
   try {
     // 获取配置文件路径
-    const configPath = process.argv[2] || path.join(__dirname, '../default-config.yml');
+    const defaultConfigPath = path.join(__dirname, '../default-config.yml');
+    const customConfigPath = process.argv[2];
     
     // 创建日志记录器
     const logger = new Logger();
     
     // 加载配置文件
-    const config = ConfigLoader.load(configPath);
+    const configLoader = new ConfigLoader(defaultConfigPath, customConfigPath);
+    const config = configLoader.getConfig();
     
     // 设置日志级别
-    logger.setLevel(config.global_log_level);
+    logger.setLevel(config.deployment_args.global_log_level);
     
     // 创建部署器
     const deployer = new CDKDeployer(config, logger);

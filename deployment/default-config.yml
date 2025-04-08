@@ -15,11 +15,13 @@ deployment_stages:
 # Database settings
 database:
   use_remote: false
-  host: "localhost"
-  port: 5432
-  master_db: "master"
-  master_user: "master_user"
-  master_password: "master_password"
+  postgres_host: "localhost"
+  postgres_port: 5432
+  postgres_master_db: "master"
+  postgres_master_user: "master_user"
+  postgres_master_password: "master_password"
+  postgres_image: "postgres:16.2"
+  postgres_service_name: "postgres"
   
   # Central Environment Databases
   central_env_dbs:
@@ -218,10 +220,6 @@ default_rollup_args:
   op_el_rpc_url: "http://op-el-1-op-geth-op-node-001:8545"
   op_cl_rpc_url: "http://op-cl-1-op-node-op-geth-001:8547"
   op_succinct_mock: false
-
-
-
-
 
 # Permissionless node settings
 default_pless_zkevm_node_args:

@@ -1,0 +1,54 @@
+deployment_stages:
+  - setup_database
+  - deploy_l1
+  - deploy_l2
+
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  name: zklink
+
+deployment_args:
+  default_prover:
+    prover_type: cpu
+    max_attempts: 3
+  default_images:
+    postgres: postgres:15
+    geth: ethereum/client-go:v1.10.26
+  default_ports:
+    postgres: 5432
+    geth: 8545
+  accounts:
+    deployer:
+      private_key: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+  l1_args:
+    chain_id: 901
+    block_time: 12
+    max_peers: 50
+  l2_args:
+    chain_id: 902
+    block_time: 2
+    max_peers: 50
+  rollup_args:
+    max_sequencer_drift: 600
+    seq_window_size: 3600
+    channel_timeout: 300
+  pless_zkevm_node_args:
+    trusted_sequencer: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+  additional_services_args:
+    metrics_enabled: true
+    monitoring_enabled: true
+
+op_stack_args:
+  l1_network_params:
+    network: "local-devnet"
+    chain_id: 901
+    description: "Local Devnet"
+    public_rpc: "http://localhost:8545"
+    explorer_url: ""
+  packages:
+    contracts_bedrock: "0.16.0"
+    sdk: "3.1.2"
+    core_utils: "0.13.1" 
