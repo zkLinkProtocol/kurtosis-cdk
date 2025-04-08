@@ -9,43 +9,75 @@ deployment_stages:
   deploy_cdk_erigon_node: true
   deploy_optimism_rollup: false
   deploy_op_succinct: false
-  deploy_l2_contracts: true
+  deploy_l2_contracts: false
+  deploy_prover: true
 
 # Database settings
 database:
+  use_remote: false
   host: "localhost"
   port: 5432
-  master_db: "postgres"
-  master_user: "postgres"
-  master_password: "postgres123"
-  use_remote: false
+  master_db: "master"
+  master_user: "master_user"
+  master_password: "master_password"
+  
+  # Central Environment Databases
+  central_env_dbs:
+    aggregator_db:
+      name: "aggregator_db"
+      user: "aggregator_user"
+      password: "redacted"
+    aggregator_syncer_db:
+      name: "aggregator_syncer_db"
+      user: "aggregator_syncer_db_user"
+      password: "redacted"
+    bridge_db:
+      name: "bridge_db"
+      user: "bridge_user"
+      password: "redacted"
+    dac_db:
+      name: "dac_db"
+      user: "dac_user"
+      password: "redacted"
+    sovereign_bridge_db:
+      name: "sovereign_bridge_db"
+      user: "sovereign_bridge_user"
+      password: "redacted"
+
+  # Prover Database
+  prover_db:
+    name: "prover_db"
+    user: "prover_user"
+    password: "redacted"
+
+  # ZkEVM Node Databases
+  zkevm_node_dbs:
+    event_db:
+      name: "event_db"
+      user: "event_user"
+      password: "redacted"
+    pool_db:
+      name: "pool_db"
+      user: "pool_user"
+      password: "redacted"
+    state_db:
+      name: "state_db"
+      user: "state_user"
+      password: "redacted"
+
+  # CDK Erigon Databases
+  cdk_erigon_dbs:
+    pool_manager_db:
+      name: "pool_manager_db"
+      user: "pool_manager_user"
+      password: "redacted"
 
 # Prover settings
-prover:
+defualt_prover:
   deploy_prover: true
-  prover_config:
-    database:
-      prover_db_host: "localhost"
-      prover_db_port: 5432
-      prover_db_name: "prover_db"
-      prover_db_user: "prover"
-      prover_db_password: "prover123"
-    executor_port: 50071
-    hash_db_port: 50061
-    metrics_port: 9092
 
-args:
-  # Basic settings
-  deployment_suffix: "-001"
-  verbosity: "info"
-  global_log_level: "info"
-  sequencer_type: "erigon"
-  consensus_contract_type: "cdk-validium"
-  additional_services: []
-  polygon_zkevm_explorer: "https://explorer.private/"
-  l1_explorer_url: "https://sepolia.etherscan.io/"
-
-  # Images
+# Images
+default_images:
   aggkit_image: "ghcr.io/agglayer/aggkit:0.1.0-beta4"
   agglayer_image: "ghcr.io/agglayer/agglayer:0.3.0-rc.5"
   cdk_erigon_node_image: "hermeznetwork/cdk-erigon:v2.61.19"
@@ -66,7 +98,8 @@ args:
   op_succinct_server_image: "ghcr.io/succinctlabs/op-succinct/succinct-proposer:sha-cb18ac0"
   op_succinct_proposer_image: "ghcr.io/succinctlabs/op-succinct/op-proposer:sha-cb18ac0"
 
-  # Ports
+# Ports
+default_ports:
   agglayer_grpc_port: 4443
   agglayer_readrpc_port: 4444
   agglayer_prover_port: 4445
@@ -94,70 +127,8 @@ args:
   op_succinct_server_port: 3000
   op_succinct_proposer_port: 7300
 
-  # L1 settings
-  l1_engine: "geth"
-  l1_chain_id: 271828
-  l1_preallocated_mnemonic: "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
-  l1_rpc_url: "http://el-1-geth-lighthouse:8545"
-  l1_ws_url: "ws://el-1-geth-lighthouse:8546"
-  l1_beacon_url: "http://cl-1-lighthouse-geth:4000"
-  l1_additional_services: []
-  l1_preset: "minimal"
-  l1_seconds_per_slot: 2
-  pectra_enabled: false
-  l1_funding_amount: "1000000ether"
-  l1_participants_count: 1
-  l1_deploy_lxly_bridge_and_call: true
-  l1_anvil_block_time: 1
-  l1_anvil_slots_in_epoch: 1
-  use_previously_deployed_contracts: false
-  erigon_datadir_archive: null
-  anvil_state_file: null
-
-  # MITM proxy settings
-  mitm_proxied_components:
-    agglayer: false
-    aggkit: false
-    bridge: false
-    dac: false
-    erigon-sequencer: false
-    erigon-rpc: false
-    cdk-node: false
-
-  # L2 settings
-  l2_accounts_to_fund: 10
-  l2_funding_amount: "100ether"
-  l2_deploy_deterministic_deployment_proxy: true
-  l2_deploy_lxly_bridge_and_call: true
-  chain_name: "zklink-test"
-  sovereign_chain_name: "op-sovereign"
-
-  # Rollup settings
-  zkevm_l2_keystore_password: "pSnv6Dh5s9ahuzGzH9RoCDrKAMddaX3m"
-  zkevm_rollup_chain_id: 10101
-  zkevm_rollup_id: 1
-  zkevm_use_real_verifier: false
-  verifier_program_vkey: "0x0062c685702e0582d900f3a19521270c92a58e2588230c4a5cf3b45103f4a512"
-  erigon_strict_mode: true
-  gas_token_enabled: false
-  gas_token_address: "0x0000000000000000000000000000000000000000"
-  use_dynamic_ports: true
-  enable_normalcy: false
-  agglayer_prover_sp1_key: null
-  agglayer_prover_network_url: "https://rpc.production.succinct.xyz"
-  agglayer_prover_primary_prover: "mock-prover"
-  agglayer_grpc_url: "http://agglayer:4443"
-  agglayer_readrpc_url: "http://agglayer:4444"
-  zkevm_path_rw_data: "/tmp/"
-  op_el_rpc_url: "http://op-el-1-op-geth-op-node-001:8545"
-  op_cl_rpc_url: "http://op-cl-1-op-node-op-geth-001:8547"
-  op_succinct_mock: false
-
-  # Additional services
-  blockscout_params:
-    blockscout_public_port: 3000
-
-  # Account settings
+# Account settings
+default_accounts:
   zkevm_l2_sequencer_address: "0x5b06837A43bdC3dD9F114558DAf4B26ed49842Ed"
   zkevm_l2_sequencer_private_key: "0x183c492d0ba156041a7f31a1b188958a7a22eebadca741a7fe64436092dc3181"
   zkevm_l2_aggregator_address: "0xCae5b68Ff783594bDe1b93cdE627c741722c4D4d"
@@ -187,11 +158,93 @@ args:
   zkevm_l2_claimtx_address: "0xE0005545D8b2a84c2380fAaa2201D92345Bd0F6F"
   zkevm_l2_claimtx_private_key: "0x01a2cdedc257344b84a53d2056a85ad58fdf51e8f65d9259028d89595d4768a8"
 
-  # Permissionless node settings
+# L1 settings
+default_l1_args:
+  l1_engine: "geth"
+  l1_chain_id: 271828
+  l1_preallocated_mnemonic: "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
+  l1_rpc_url: "http://el-1-geth-lighthouse:8545"
+  l1_ws_url: "ws://el-1-geth-lighthouse:8546"
+  l1_beacon_url: "http://cl-1-lighthouse-geth:4000"
+  l1_additional_services: []
+  l1_preset: "minimal"
+  l1_seconds_per_slot: 2
+  pectra_enabled: false
+  l1_funding_amount: "1000000ether"
+  l1_participants_count: 1
+  l1_deploy_lxly_bridge_and_call: true
+  l1_anvil_block_time: 1
+  l1_anvil_slots_in_epoch: 1
+  use_previously_deployed_contracts: false
+  erigon_datadir_archive: null
+  anvil_state_file: null
+  # MITM proxy settings
+  mitm_proxied_components:
+    agglayer: false
+    aggkit: false
+    bridge: false
+    dac: false
+    erigon-sequencer: false
+    erigon-rpc: false
+    cdk-node: false
+
+# L2 settings
+default_l2_args:
+  l2_accounts_to_fund: 10
+  l2_funding_amount: "100ether"
+  l2_deploy_deterministic_deployment_proxy: true
+  l2_deploy_lxly_bridge_and_call: true
+  chain_name: "zklink-test"
+  sovereign_chain_name: "op-sovereign"
+
+# Rollup settings
+default_rollup_args:
+  zkevm_l2_keystore_password: "pSnv6Dh5s9ahuzGzH9RoCDrKAMddaX3m"
+  zkevm_rollup_chain_id: 10101
+  zkevm_rollup_id: 1
+  zkevm_use_real_verifier: false
+  verifier_program_vkey: "0x0062c685702e0582d900f3a19521270c92a58e2588230c4a5cf3b45103f4a512"
+  erigon_strict_mode: true
+  gas_token_enabled: false
+  gas_token_address: "0x0000000000000000000000000000000000000000"
+  use_dynamic_ports: true
+  enable_normalcy: false
+  agglayer_prover_sp1_key: null
+  agglayer_prover_network_url: "https://rpc.production.succinct.xyz"
+  agglayer_prover_primary_prover: "mock-prover"
+  agglayer_grpc_url: "http://agglayer:4443"
+  agglayer_readrpc_url: "http://agglayer:4444"
+  zkevm_path_rw_data: "/tmp/"
+  op_el_rpc_url: "http://op-el-1-op-geth-op-node-001:8545"
+  op_cl_rpc_url: "http://op-cl-1-op-node-op-geth-001:8547"
+  op_succinct_mock: false
+
+
+
+
+
+# Permissionless node settings
+default_pless_zkevm_node_args:
   trusted_sequencer_node_uri: "zkevm-node-sequencer-001:6900"
   zkevm_aggregator_host: "zkevm-node-aggregator-001"
   genesis_file: "templates/permissionless-node/genesis.json"
   sovereign_genesis_file: "templates/sovereign-genesis.json"
+
+# Additional services
+default_additional_services_args:
+  blockscout_params:
+    blockscout_public_port: 3000
+
+default_args:
+  # Basic settings
+  deployment_suffix: "-001"
+  verbosity: "info"
+  global_log_level: "info"
+  sequencer_type: "erigon"
+  consensus_contract_type: "cdk-validium"
+  additional_services: []
+  polygon_zkevm_explorer: "https://explorer.private/"
+  l1_explorer_url: "https://sepolia.etherscan.io/"
 
 optimism_package:
   source: "github.com/ethpandaops/optimism-package/main.star@884f4eb813884c4c8e5deead6ca4e0c54b85da90"
@@ -209,7 +262,7 @@ optimism_package:
         seconds_per_slot: 1
 
 # Static ports configuration
-static_ports:
+default_static_ports:
   # L1 static ports (50000-50999)
   l1_el_start_port: 50000
   l1_cl_start_port: 50010
@@ -252,4 +305,11 @@ static_ports:
   arpeggio_start_port: 52000
   blutgang_start_port: 52010
   erpc_start_port: 52020
-  panoptichain_start_port: 52030 
+  panoptichain_start_port: 52030
+
+# A list of fork identifiers currently supported by Kurtosis CDK.
+default_supported_fork_ids:
+  - 9
+  - 11
+  - 12
+  - 13
