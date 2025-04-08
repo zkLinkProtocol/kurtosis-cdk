@@ -38,3 +38,5 @@ deployment/prover/
 deployment/logs
 deployment/dist
 deployment/coverage
+
+.cursor/
