@@ -345,7 +345,11 @@ export interface DeploymentArgs extends
   PlessZkevmNodeArgs,
   AdditionalServicesArgs,
   ProverConfig {
-
+  l2_rpc_name: string;
+  sequencer_name: string;
+  zkevm_rollup_fork_id: number;
+  zkevm_rollup_fork_name: string;
+  deploy_agglayer: boolean;
 }
 
 // OpStack外部L1网络参数

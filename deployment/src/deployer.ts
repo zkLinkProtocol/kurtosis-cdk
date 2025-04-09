@@ -6,6 +6,7 @@ import { DatabaseDeployer } from './services/database-deployer';
 import { CentralEnvironmentDeployer } from './services/central-environment-deployer';
 import { L2ContractDeployer } from './services/l2-contract-deployer';
 import { AgglayerDeployer } from './services/agglayer-deployer';
+import { L1Deployer } from './services/l1-deployer';
 import { readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import fs from 'fs';
@@ -77,7 +78,8 @@ export class CDKDeployer {
 
   private async deployL1Environment(): Promise<void> {
     this.logger.info('部署 L1 环境...');
-    // TODO: 实现 L1 环境部署逻辑
+    const l1Deployer = new L1Deployer(this.config, this.logger);
+    await l1Deployer.deploy();
   }
 
   private async deployZkEVMContracts(): Promise<void> {
@@ -94,7 +96,7 @@ export class CDKDeployer {
 
   private async getContractAddresses(): Promise<any> {
     // 从合约部署服务中获取地址
-    const contractsService = `contracts${this.config.deployment_suffix}`;
+    const contractsService = `contracts${this.config.deployment_args.deployment_suffix}`;
     const combinedJsonPath = '/opt/zkevm/combined.json';
     
     try {
@@ -149,7 +151,7 @@ export class CDKDeployer {
     this.logger.info('部署额外服务...');
 
     try {
-      const additionalServices = this.config.additional_services || [];
+      const additionalServices = this.config.deployment_args.additional_services || [];
 
       // 部署 Blockscout
       if (additionalServices.includes('blockscout')) {
@@ -173,8 +175,8 @@ export class CDKDeployer {
 
     // 获取 L2 RPC URL
     const l2RpcUrl = {
-      http: `http://${this.config.l2_rpc_name}${this.config.deployment_suffix}:${this.config.ports.zkevm_rpc_http_port}`,
-      ws: `ws://${this.config.l2_rpc_name}${this.config.deployment_suffix}:${this.config.ports.zkevm_rpc_ws_port}`
+      http: `http://${this.config.deployment_args.l2_rpc_name}${this.config.deployment_args.deployment_suffix}:${this.config.deployment_args.zkevm_rpc_http_port}`,
+      ws: `ws://${this.config.deployment_args.l2_rpc_name}${this.config.deployment_args.deployment_suffix}:${this.config.deployment_args.zkevm_rpc_ws_port}`
     };
 
     // 创建 Blockscout 配置
@@ -182,9 +184,9 @@ export class CDKDeployer {
       rpc_url: l2RpcUrl.http,
       trace_url: l2RpcUrl.http,
       ws_url: l2RpcUrl.ws,
-      chain_id: this.config.zkevm_rollup_chain_id.toString(),
-      deployment_suffix: this.config.deployment_suffix,
-      ...this.config.blockscout_params
+      chain_id: this.config.deployment_args.zkevm_rollup_chain_id.toString(),
+      deployment_suffix: this.config.deployment_args.deployment_suffix,
+      ...this.config.deployment_args.blockscout_params
     };
 
     // 部署 Blockscout 服务
@@ -193,7 +195,7 @@ export class CDKDeployer {
       image: 'blockscout/blockscout-zkevm:6.8.1',
       config: blockscoutConfig,
       ports: {
-        'frontend': this.config.ports.blockscout_frontend_port
+        'frontend': this.config.deployment_args.blockscout_params.blockscout_public_port
       }
     });
 
@@ -227,7 +229,7 @@ export class CDKDeployer {
       image: 'prom/prometheus:v3.0.1',
       config: prometheusConfig,
       ports: {
-        'http': this.config.ports.prometheus_port
+        'http': this.config.deployment_args.prometheus_port
       },
       command: [
         '--config.file=/etc/zkevm/config.json',
@@ -294,7 +296,7 @@ export class CDKDeployer {
     command?: string[];
   }): Promise<void> {
     const { name, image, config, ports, volumes, command } = options;
-    const serviceName = `${name}${this.config.deployment_suffix}`;
+    const serviceName = `${name}${this.config.deployment_args.deployment_suffix}`;
 
     // 1. 创建配置文件
     const configPath = this.pathManager.getBuildPath(`${name}-config.json`);

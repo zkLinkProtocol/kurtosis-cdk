@@ -125,10 +125,21 @@ export class ConfigLoader {
     };
 
     // 然后与自定义配置合并
-    const deployment_args = this.deepMerge(
+    const args = this.deepMerge(
       baseDeploymentArgs,
       customConfig.deployment_args
     ) as DeploymentArgs;
+
+    const [fork_id, fork_name] = this.getForkId(args.zkevm_contracts_image);
+
+    const deployment_args = {
+      ...args,
+      "l2_rpc_name": deployment_stages.deploy_cdk_erigon_node ? "cdk-erigon-rpc" : "zkevm-node-rpc",
+      "sequencer_name": args.sequencer_type === "erigon" ? "cdk-erigon-sequencer" : "zkevm-node-sequencer",
+      "zkevm_rollup_fork_id": fork_id,
+      "zkevm_rollup_fork_name": fork_name,
+      "deploy_agglayer": deployment_stages.deploy_agglayer
+    } as DeploymentArgs
 
     // 3. 合并optimism_package和构建op_stack_args
     const optimismPackage = this.deepMerge(

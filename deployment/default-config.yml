@@ -162,7 +162,7 @@ default_accounts:
 
 # L1 settings
 default_l1_args:
-  l1_engine: "geth"
+  l1_engine: "anvil"
   l1_chain_id: 271828
   l1_preallocated_mnemonic: "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
   l1_rpc_url: "http://el-1-geth-lighthouse:8545"
