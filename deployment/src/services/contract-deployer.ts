@@ -37,8 +37,8 @@ export class ContractDeployer extends BaseDeployer {
       await this.generateDeployScript();
 
       // 2. 启动部署服务
-      await this.startServices('contracts');
-      await this.waitForHealthy('contracts');
+      // await this.startServices('contracts');
+      // await this.waitForHealthy('contracts');
 
       this.logger.info('合约部署完成');
     } catch (error) {
@@ -83,18 +83,18 @@ export class ContractDeployer extends BaseDeployer {
 
     // 1. 渲染模板
     const contracts = this.contractConfig.artifacts || [];
-    const renderedContent = this.renderTemplate('contract-deploy/deploy.ts', {
-      // contracts: contracts.map(this.formatContractConfig)
-    });
+    // const renderedContent = this.renderTemplate('contract-deploy/deploy.ts', {
+    //   // contracts: contracts.map(this.formatContractConfig)
+    // });
 
     // 2. 写入文件
-    const outputPath = this.pathManager.getBuildPath('deploy.ts');
-    writeFileSync(outputPath, renderedContent);
+    // const outputPath = this.pathManager.getBuildPath('deploy.ts');
+    // writeFileSync(outputPath, renderedContent);
 
     // 3. 编译脚本
-    execSync(`tsc ${outputPath} --esModuleInterop --target es2020 --module commonjs`, {
-      stdio: 'inherit'
-    });
+    // execSync(`tsc ${outputPath} --esModuleInterop --target es2020 --module commonjs`, {
+    //   stdio: 'inherit'
+    // });
   }
 
   // private formatContractConfig(config: ArtifactConfig): string {

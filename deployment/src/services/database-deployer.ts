@@ -104,8 +104,8 @@ export class DatabaseDeployer extends BaseDeployer {
     this.logger.info('部署本地数据库...');
 
     // 使用 Docker Compose 启动数据库服务
-    await this.startServices('db');
-    await this.waitForHealthy('db');
+    // await this.startServices('db');
+    // await this.waitForHealthy('db');
   }
 
   private async initializeRemoteDatabase(dbConfigs: Record<string, DatabaseConfig>): Promise<void> {

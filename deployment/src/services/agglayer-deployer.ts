@@ -25,10 +25,10 @@ export class AgglayerDeployer extends BaseDeployer {
     await this.copyKeystoreFile();
 
     // 启动服务
-    await this.startServices('core');
+    // await this.startServices('core');
 
     // 等待服务就绪
-    await this.waitForHealthy('core');
+    // await this.waitForHealthy('core');
 
     this.logger.info('Agglayer 部署完成');
   }

@@ -88,7 +88,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     this.logger.info('部署 Prover...');
 
     // 准备 Prover 配置
-    const proverConfig = this.renderTemplate('trusted-node/prover-config.json', {
+    await this.configGenerator.renderTemplate('trusted-node/prover-config.json', {
       prover_db: {
         host: this.config.database?.postgres_host,
         port: this.config.database?.postgres_port,
@@ -96,14 +96,12 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
         user: this.config.database?.prover_db?.user,
         password: this.config.database?.prover_db?.password
       },
-    });
+    }, 'prover-config.json');
 
-    // 写入配置文件
-    this.writeConfig('prover-config.json', proverConfig);
 
     // 启动 Prover 服务
-    await this.startServices('core');
-    await this.waitForHealthy('core');
+    // await this.startServices('core');
+    // await this.waitForHealthy('core');
   }
 
   private async getGenesisArtifact(): Promise<string> {
@@ -114,9 +112,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     }
 
     const genesisFile = this.config.deployment_args.genesis_file || 'default-genesis.json';
-    const genesisContent = this.renderTemplate(genesisFile, {});
-    
-    this.writeConfig('genesis.json', genesisContent);
+    await this.configGenerator.renderTemplate(genesisFile, {}, 'genesis.json');
     return this.pathManager.getBuildPath('genesis.json');
   }
 
@@ -124,17 +120,14 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     this.logger.info('部署 zkEVM 组件...');
 
     // 1. 创建节点配置
-    const nodeConfig = this.renderTemplate('trusted-node/node-config.toml', {
+    await this.configGenerator.renderTemplate('trusted-node/node-config.toml', {
       ...this.config,
       is_cdk_validium: this.isCDKValidium()
-    });
-
-    // 写入配置文件
-    this.writeConfig('node-config.toml', nodeConfig);
+    }, 'node-config.toml');
 
     // 2. 启动节点服务
-    await this.startServices('node');
-    await this.waitForHealthy('node');
+    // await this.startServices('node');
+    // await this.waitForHealthy('node');
   }
 
   private async deployCDKErigonComponents(genesisArtifact: string): Promise<void> {
@@ -146,42 +139,33 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     }
 
     // 2. 创建 CDK Erigon 配置
-    const erigonConfig = this.renderTemplate('cdk-erigon/config.toml', {
+    await this.configGenerator.renderTemplate('cdk-erigon/config.toml', {
       ...this.config,
       ...this.contractAddresses
-    });
-
-    // 写入配置文件
-    this.writeConfig('sequencer-config.toml', erigonConfig);
+    }, 'sequencer-config.toml');
 
     // 3. 创建 chainspec 文件
-    const chainspecConfig = this.renderTemplate('cdk-erigon/chainspec.json', {
+    await this.configGenerator.renderTemplate('cdk-erigon/chainspec.json', {
       ...this.config,
       ...this.contractAddresses
-    });
-
-    // 写入 chainspec 文件
-    this.writeConfig('chainspec.json', chainspecConfig);
+    }, 'chainspec.json');
 
     // 4. 创建 keystore 文件
-    const keystoreConfig = this.renderTemplate('cdk-erigon/sequencer.keystore', {
+    await this.configGenerator.renderTemplate('cdk-erigon/sequencer.keystore', {
       ...this.config,
       ...this.contractAddresses
-    });
-
-    // 写入 keystore 文件
-    this.writeConfig('sequencer.keystore', keystoreConfig);
+    }, 'sequencer.keystore');
 
     // 5. 启动服务
-    await this.startServices('core');
-    await this.waitForHealthy('core');
+    // await this.startServices('core');
+    // await this.waitForHealthy('core');
   }
 
   private async deployStatelessExecutor(): Promise<void> {
     this.logger.info('部署无状态执行器...');
 
     // 准备执行器配置
-    const executorConfig = this.renderTemplate('trusted-node/prover-config.json', {
+    await this.configGenerator.renderTemplate('trusted-node/prover-config.json', {
       ...this.config,
       stateless_executor: true,
       // 确保数据库配置正确传递
@@ -198,93 +182,87 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
       zkevm_executor_port: this.config.deployment_args.zkevm_executor_port || 50071,
       zkevm_hash_db_port: this.config.deployment_args.zkevm_hash_db_port || 50061,
       zkevm_aggregator_port: this.config.deployment_args.zkevm_aggregator_port || 50081,
-    });
-
-    // 写入配置文件
-    this.writeConfig('executor-config.json', executorConfig);
+    }, 'executor-config.json');
 
     // 启动执行器服务
-    await this.startServices('core');
-    await this.waitForHealthy('core');
+    // await this.startServices('core');
+    // await this.waitForHealthy('core');
   }
 
   private async deployDAC(): Promise<void> {
     this.logger.info('部署 DAC...');
 
     // 创建 DAC 配置
-    const dacConfig = this.renderTemplate('trusted-node/dac-config.toml', {
+    await this.configGenerator.renderTemplate('trusted-node/dac-config.toml', {
       ...this.config,
       ...this.contractAddresses
-    });
-
-    // 写入配置文件
-    this.writeConfig('dac-config.toml', dacConfig);
+    }, 'dac-config.toml');
 
     // 启动 DAC 服务
-    await this.startServices('node');
-    await this.waitForHealthy('node');
+    // await this.startServices('node');
+    // await this.waitForHealthy('node');
   }
 
   private isCDKValidium(): boolean {
     return this.config.deployment_args.consensus_contract_type === 'cdk-validium';
   }
 
-  private async prepareProverConfig(proverType: string): Promise<void> {
-    const config = this.renderTemplate(`${proverType}-prover-config.toml`, {
-      PROVER_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_proofsigner_private_key,
-      PROVER_OPERATOR: this.config.deployment_args.zkevm_l2_proofsigner_address,
-      PROVER_OPERATOR_COMMIT_DELAY: this.config.deployment_args.zkevm_executor_port,
-      PROVER_OPERATOR_PROOF_DELAY: this.config.deployment_args.zkevm_hash_db_port,
-      PROVER_OPERATOR_COMMIT_SLOT_SIZE: 1,
-      PROVER_OPERATOR_PROOF_SLOT_SIZE: 1,
-      PROVER_OPERATOR_COMMIT_PROOF_RATIO: 1,
-    });
-    this.writeConfig(`${proverType}-prover-config.toml`, config);
-  }
+  // private async prepareProverConfig(proverType: string): Promise<void> {
+  //   const config = this.renderTemplate(`${proverType}-prover-config.toml`, {
+  //     PROVER_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_proofsigner_private_key,
+  //     PROVER_OPERATOR: this.config.deployment_args.zkevm_l2_proofsigner_address,
+  //     PROVER_OPERATOR_COMMIT_DELAY: this.config.deployment_args.zkevm_executor_port,
+  //     PROVER_OPERATOR_PROOF_DELAY: this.config.deployment_args.zkevm_hash_db_port,
+  //     PROVER_OPERATOR_COMMIT_SLOT_SIZE: 1,
+  //     PROVER_OPERATOR_PROOF_SLOT_SIZE: 1,
+  //     PROVER_OPERATOR_COMMIT_PROOF_RATIO: 1,
+  //   });
+  //   this.writeConfig(`${proverType}-prover-config.toml`, config);
+  // }
 
-  private async prepareSequencerConfig(): Promise<void> {
-    const config = this.renderTemplate('sequencer-config.toml', {
-      SEQUENCER_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_sequencer_private_key,
-      SEQUENCER_OPERATOR: this.config.deployment_args.zkevm_l2_sequencer_address,
-      SEQUENCER_OPERATOR_COMMIT_DELAY: this.config.deployment_args.zkevm_executor_port,
-      SEQUENCER_OPERATOR_PROOF_DELAY: this.config.deployment_args.zkevm_hash_db_port,
-      SEQUENCER_OPERATOR_COMMIT_SLOT_SIZE: 1,
-      SEQUENCER_OPERATOR_PROOF_SLOT_SIZE: 1,
-      SEQUENCER_OPERATOR_COMMIT_PROOF_RATIO: 1,
-    });
-    this.writeConfig('sequencer-config.toml', config);
-  }
+  // private async prepareSequencerConfig(): Promise<void> {
+  //   const config = this.renderTemplate('sequencer-config.toml', {
+  //     SEQUENCER_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_sequencer_private_key,
+  //     SEQUENCER_OPERATOR: this.config.deployment_args.zkevm_l2_sequencer_address,
+  //     SEQUENCER_OPERATOR_COMMIT_DELAY: this.config.deployment_args.zkevm_executor_port,
+  //     SEQUENCER_OPERATOR_PROOF_DELAY: this.config.deployment_args.zkevm_hash_db_port,
+  //     SEQUENCER_OPERATOR_COMMIT_SLOT_SIZE: 1,
+  //     SEQUENCER_OPERATOR_PROOF_SLOT_SIZE: 1,
+  //     SEQUENCER_OPERATOR_COMMIT_PROOF_RATIO: 1,
+  //   });
+  //   this.writeConfig('sequencer-config.toml', config);
+  // }
 
-  private async prepareValidatorConfig(): Promise<void> {
-    const config = this.renderTemplate('validator-config.toml', {
-      VALIDATOR_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_admin_private_key,
-      VALIDATOR_OPERATOR: this.config.deployment_args.zkevm_l2_admin_address,
-    });
-    this.writeConfig('validator-config.toml', config);
-  }
+  // private async prepareValidatorConfig(): Promise<void> {
+  //   const config = this.renderTemplate('validator-config.toml', {
+  //     VALIDATOR_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_admin_private_key,
+  //     VALIDATOR_OPERATOR: this.config.deployment_args.zkevm_l2_admin_address,
+  //   });
+  //   this.writeConfig('validator-config.toml', config);
+  // }
 
-  private async prepareWitnessConfig(): Promise<void> {
-    const config = this.renderTemplate('witness-config.toml', {
-      WITNESS_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_loadtest_private_key,
-      WITNESS_OPERATOR: this.config.deployment_args.zkevm_l2_loadtest_address,
-    });
-    this.writeConfig('witness-config.toml', config);
-  }
+  // private async prepareWitnessConfig(): Promise<void> {
+  //   const config = this.renderTemplate('witness-config.toml', {
+  //     WITNESS_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_loadtest_private_key,
+  //     WITNESS_OPERATOR: this.config.deployment_args.zkevm_l2_loadtest_address,
+  //   });
+  //   this.writeConfig('witness-config.toml', config);
+  // }
 
-  private async prepareL1Config(): Promise<void> {
-    const config = this.renderTemplate('l1-config.toml', {
-      L1_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_l1testing_private_key,
-      L1_OPERATOR: this.config.deployment_args.zkevm_l2_l1testing_address,
-    });
-    this.writeConfig('l1-config.toml', config);
-  }
+  // private async prepareL1Config(): Promise<void> {
+  //   const config = this.renderTemplate('l1-config.toml', {
+  //     L1_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_l1testing_private_key,
+  //     L1_OPERATOR: this.config.deployment_args.zkevm_l2_l1testing_address,
+  //   });
+  //   this.writeConfig('l1-config.toml', config);
+  // }
 
-  private async prepareL2Config(): Promise<void> {
-    const template = this.readTemplate('l2-config.toml');
-    const config = this.renderTemplate(template, {
-      L2_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_claimtxmanager_private_key,
-      L2_OPERATOR: this.config.deployment_args.zkevm_l2_claimtxmanager_address,
-    });
-    this.writeConfig('l2-config.toml', config);
-  }
+  // private async prepareL2Config(): Promise<void> {
+  //   const template = this.readTemplate('l2-config.toml');
+  //   const config = this.renderTemplate(template, {
+  //     L2_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_claimtxmanager_private_key,
+  //     L2_OPERATOR: this.config.deployment_args.zkevm_l2_claimtxmanager_address,
+  //   });
+  //   this.writeConfig('l2-config.toml', config);
+  // }
 } 

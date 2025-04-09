@@ -5,36 +5,15 @@ import { execSync } from 'child_process';
 import { writeFileSync } from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
-import { L1ConfigGenerator } from '../configs/l1-config-generator';
 import { L1ComposeGenerator, L1ExtraConfig } from '../compose/l1-compose-generator';
 
-interface DockerComposeService {
-  image: string;
-  entrypoint?: string;
-  command?: string;
-  environment?: Record<string, string>;
-  ports?: string[];
-  volumes?: string[];
-}
-
-interface DockerComposeConfig {
-  version: string;
-  services: {
-    [key: string]: DockerComposeService;
-  };
-}
-
 export class L1Deployer extends BaseDeployer {
-  private readonly STATE_PATH = "/tmp";
-  private readonly composeConfig: DockerComposeConfig;
+  private readonly composeGenerator: L1ComposeGenerator;
   private anvil_script_path: string = '';
 
   constructor(config: DeploymentConfig, logger: Logger) {
     super(config, logger);
-    this.composeConfig = {
-      version: '3.8',
-      services: {}
-    };
+    this.composeGenerator = new L1ComposeGenerator(config, logger, { name: config.deployment_args.chain_name });
   }
 
   public async deploy(): Promise<void> {
@@ -63,14 +42,11 @@ export class L1Deployer extends BaseDeployer {
   private async generateAnvilStartScript(): Promise<void> {
     const scriptPath = path.join(this.pathManager.getBuildDir(), 'start-anvil.sh');
     
-    // 使用配置生成器生成启动脚本
-    const l1ConfigGenerator = new L1ConfigGenerator(this.config);
-    
     // 确保构建目录存在
     execSync(`mkdir -p ${this.pathManager.getBuildDir()}`);
     
     // 生成启动脚本并设置执行权限
-    await l1ConfigGenerator.generateAnvilStartScript(scriptPath);
+    await this.configGenerator.renderTemplate('l1-deployer/start-anvil.sh', this.config.deployment_args, 'start-anvil.sh');
     execSync(`chmod +x ${scriptPath}`);
 
     // 保存脚本路径
@@ -78,18 +54,11 @@ export class L1Deployer extends BaseDeployer {
   }
 
   private async generateDockerComposeConfig(): Promise<string> {
-    // 使用新的compose生成器
-    const composeGenerator = new L1ComposeGenerator(
-      this.config, 
-      this.logger,
-      { name: 'zklink-network' }
-    );
-
     const extraConfig: L1ExtraConfig = {
       anvil_script_path: this.anvil_script_path
     };
 
-    const composeConfig = await composeGenerator.generate(extraConfig);
+    const composeConfig = await this.composeGenerator.generate(extraConfig);
 
     // 写入配置文件
     const composePath = path.join(this.pathManager.getBuildDir(), 'l1-docker-compose.yml');
