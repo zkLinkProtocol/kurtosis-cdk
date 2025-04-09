@@ -12,6 +12,8 @@ interface DockerComposeService {
   volumes?: string[];
   command: string;
   depends_on?: string[];
+  entrypoint?: string;
+  environment?: Record<string, string>;
 }
 
 interface DockerComposeConfig {
@@ -59,32 +61,33 @@ export class L1Deployer extends BaseDeployer {
     const args = this.config.deployment_args;
     const serviceName = `anvil${args.deployment_suffix}`;
 
-    // 构建 Anvil 命令
-    const cmd = [
-      'anvil',
-      '--block-time', (args.l1_anvil_block_time || 1).toString(),
-      '--slots-in-an-epoch', (args.l1_anvil_slots_in_epoch || 1).toString(),
-      '--chain-id', args.l1_chain_id.toString(),
-      '--host', '0.0.0.0',
-      '--port', '8545',
-      '--dump-state', `${this.STATE_PATH}/state_out.json`,
-      '--balance', '1000000000',
-      '--mnemonic', `"${args.l1_preallocated_mnemonic}"`
-    ];
-
-    // 如果指定了状态文件，添加加载状态的参数
-    if (args.anvil_state_file) {
-      cmd.push('--load-state', `${this.STATE_PATH}/${args.anvil_state_file}`);
-    }
+    // 从模板生成启动脚本
+    const templatePath = path.join(this.pathManager.getTemplatesDir(), 'l1-deployer', 'start-anvil.sh.tmpl');
+    const scriptPath = path.join(this.pathManager.getBuildDir(), 'start-anvil.sh');
+    
+    // 确保构建目录存在
+    execSync(`mkdir -p ${this.pathManager.getBuildDir()}`);
+    
+    // 复制模板并设置执行权限
+    execSync(`cp ${templatePath} ${scriptPath}`);
+    execSync(`chmod +x ${scriptPath}`);
 
     // 添加 Anvil 服务配置
     this.composeConfig.services[serviceName] = {
       image: args.anvil_image,
-      command: cmd.join(' '),
+      entrypoint: '/bin/sh',
+      command: '/app/start-anvil.sh',
+      environment: {
+        BLOCK_TIME: (args.l1_anvil_block_time || 1).toString(),
+        SLOTS_IN_EPOCH: (args.l1_anvil_slots_in_epoch || 1).toString(),
+        CHAIN_ID: args.l1_chain_id.toString(),
+        MNEMONIC: args.l1_preallocated_mnemonic
+      },
       ports: ['8545:8545'],
-      volumes: args.anvil_state_file ? 
-        [`${args.anvil_state_file}:${this.STATE_PATH}/${args.anvil_state_file}`] : 
-        undefined
+      volumes: [
+        `${scriptPath}:/app/start-anvil.sh`,
+        ...(args.anvil_state_file ? [`${args.anvil_state_file}:${this.STATE_PATH}/${args.anvil_state_file}`] : [])
+      ]
     };
   }
 
@@ -95,7 +98,7 @@ export class L1Deployer extends BaseDeployer {
   }
 
   private startL1Environment(composePath: string): void {
-    execSync(`docker-compose -f ${composePath} up -d`, { stdio: 'inherit' });
+    execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
   }
 
   private async waitForL1Startup(): Promise<void> {

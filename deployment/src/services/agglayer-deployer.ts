@@ -35,26 +35,26 @@ export class AgglayerDeployer extends BaseDeployer {
 
   protected async getContractSetupAddresses(): Promise<ContractSetupAddresses> {
     return {
-      zkevm_rollup_fork_id: this.config.zkevm_rollup_fork_id,
-      zkevm_l2_keystore_password: this.config.zkevm_l2_keystore_password,
-      zkevm_l2_proofsigner_address: this.config.zkevm_l2_proofsigner_address,
-      zkevm_l2_sequencer_address: this.config.accounts?.zkevm_l2_sequencer_address,
-      zkevm_rpc_http_port: this.config.ports.zkevm_rpc_http_port,
-      agglayer_grpc_port: this.config.ports.agglayer_grpc_port,
-      agglayer_readrpc_port: this.config.ports.agglayer_readrpc_port,
-      agglayer_admin_port: this.config.ports.agglayer_admin_port,
-      agglayer_prover_port: this.config.ports.agglayer_prover_port,
-      agglayer_metrics_port: this.config.ports.agglayer_metrics_port
+      zkevm_rollup_fork_id: this.config.deployment_args.zkevm_rollup_fork_id,
+      zkevm_l2_keystore_password: this.config.deployment_args.zkevm_l2_keystore_password,
+      zkevm_l2_proofsigner_address: this.config.deployment_args.zkevm_l2_proofsigner_address,
+      zkevm_l2_sequencer_address: this.config.deployment_args.zkevm_l2_sequencer_address,
+      zkevm_rpc_http_port: this.config.deployment_args.zkevm_rpc_http_port,
+      agglayer_grpc_port: this.config.deployment_args.agglayer_grpc_port,
+      agglayer_readrpc_port: this.config.deployment_args.agglayer_readrpc_port,
+      agglayer_admin_port: this.config.deployment_args.agglayer_admin_port,
+      agglayer_prover_port: this.config.deployment_args.agglayer_prover_port,
+      agglayer_metrics_port: this.config.deployment_args.agglayer_metrics_port
     };
   }
 
   private async prepareAgglayerProverConfig(): Promise<void> {
     const template = this.readTemplate('agglayer-prover-config.toml');
     const config = this.renderTemplate(template, {
-      PROVER_PRIVATE_KEY: this.config.accounts.zkevm_l2_proofsigner_private_key,
-      PROVER_OPERATOR: this.config.accounts.zkevm_l2_proofsigner_address,
-      PROVER_OPERATOR_COMMIT_DELAY: this.config.prover?.prover_config?.executor_port || 0,
-      PROVER_OPERATOR_PROOF_DELAY: this.config.prover?.prover_config?.hash_db_port || 0,
+      PROVER_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_proofsigner_private_key,
+      PROVER_OPERATOR: this.config.deployment_args.zkevm_l2_proofsigner_address,
+      PROVER_OPERATOR_COMMIT_DELAY: this.config.deployment_args.zkevm_executor_port,
+      PROVER_OPERATOR_PROOF_DELAY: this.config.deployment_args.zkevm_hash_db_port,
       PROVER_OPERATOR_COMMIT_SLOT_SIZE: 1,
       PROVER_OPERATOR_PROOF_SLOT_SIZE: 1,
       PROVER_OPERATOR_COMMIT_PROOF_RATIO: 1,
@@ -65,10 +65,10 @@ export class AgglayerDeployer extends BaseDeployer {
   private async prepareAgglayerConfig(): Promise<void> {
     const template = this.readTemplate('agglayer-config.toml');
     const config = this.renderTemplate(template, {
-      AGGLAYER_PRIVATE_KEY: this.config.accounts.zkevm_l2_agglayer_private_key,
-      AGGLAYER_OPERATOR: this.config.accounts.zkevm_l2_agglayer_address,
-      AGGLAYER_OPERATOR_COMMIT_DELAY: this.config.prover?.prover_config?.executor_port || 0,
-      AGGLAYER_OPERATOR_PROOF_DELAY: this.config.prover?.prover_config?.hash_db_port || 0,
+      AGGLAYER_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_agglayer_private_key,
+      AGGLAYER_OPERATOR: this.config.deployment_args.zkevm_l2_agglayer_address,
+      AGGLAYER_OPERATOR_COMMIT_DELAY: this.config.deployment_args.zkevm_executor_port,
+      AGGLAYER_OPERATOR_PROOF_DELAY: this.config.deployment_args.zkevm_hash_db_port,
       AGGLAYER_OPERATOR_COMMIT_SLOT_SIZE: 1,
       AGGLAYER_OPERATOR_PROOF_SLOT_SIZE: 1,
       AGGLAYER_OPERATOR_COMMIT_PROOF_RATIO: 1,
@@ -88,8 +88,8 @@ export class AgglayerDeployer extends BaseDeployer {
 
     // 写入 keystore 文件
     writeFileSync(keystoreFile, JSON.stringify({
-      address: this.config.accounts.zkevm_l2_agglayer_address,
-      privateKey: this.config.accounts.zkevm_l2_agglayer_private_key,
+      address: this.config.deployment_args.zkevm_l2_agglayer_address,
+      privateKey: this.config.deployment_args.zkevm_l2_agglayer_private_key,
     }));
 
     // 写入密码文件

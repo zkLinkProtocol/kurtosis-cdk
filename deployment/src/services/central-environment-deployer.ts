@@ -54,7 +54,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
       const genesisArtifact = await this.getGenesisArtifact();
 
       // 3. 根据 sequencer 类型部署相应组件
-      if (this.config.sequencer_type === 'zkevm') {
+      if (this.config.deployment_args.sequencer_type === 'zkevm') {
         await this.deployZkEVMComponents(genesisArtifact);
       } else {
         await this.deployCDKErigonComponents(genesisArtifact);
@@ -74,14 +74,14 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
 
   private shouldDeployProver(): boolean {
     // 检查是否需要部署 Prover
-    const baseCondition = !this.config.zkevm_use_real_verifier && 
-                         !this.config.enable_normalcy && 
-                         this.config.consensus_contract_type !== 'pessimistic';
+    const baseCondition = !this.config.deployment_args.zkevm_use_real_verifier && 
+                         !this.config.deployment_args.enable_normalcy && 
+                         this.config.deployment_args.consensus_contract_type !== 'pessimistic';
 
-    if (!this.config.prover) {
+    if (!this.config.deployment_args.deploy_prover) {
       return false;
     }
-    return (this.config.prover.deploy_prover ?? false) && baseCondition;
+    return (this.config.deployment_args.deploy_prover ?? false) && baseCondition;
   }
 
   private async deployProver(): Promise<void> {
@@ -90,14 +90,12 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     // 准备 Prover 配置
     const proverConfig = this.renderTemplate('trusted-node/prover-config.json', {
       prover_db: {
-        host: this.config.database?.host || '127.0.0.1',
-        port: this.config.database?.port || 5432,
-        name: this.config.database?.prover_db?.name || 'prover_db',
-        user: this.config.database?.prover_db?.user || 'prover_user',
-        password: this.config.database?.prover_db?.password || 'redacted'
+        host: this.config.database?.postgres_host,
+        port: this.config.database?.postgres_port,
+        name: this.config.database?.prover_db?.name,
+        user: this.config.database?.prover_db?.user,
+        password: this.config.database?.prover_db?.password
       },
-      // 如果有 Prover 专用配置,使用专用配置
-      ...(this.config.prover?.prover_config || {})
     });
 
     // 写入配置文件
@@ -111,11 +109,11 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
   private async getGenesisArtifact(): Promise<string> {
     this.logger.info('获取 Genesis 文件...');
 
-    if (this.config.genesis_artifact) {
-      return this.config.genesis_artifact;
+    if (this.config.deployment_args.genesis_file) {
+      return this.config.deployment_args.genesis_file;
     }
 
-    const genesisFile = this.config.genesis_file || 'default-genesis.json';
+    const genesisFile = this.config.deployment_args.genesis_file || 'default-genesis.json';
     const genesisContent = this.renderTemplate(genesisFile, {});
     
     this.writeConfig('genesis.json', genesisContent);
@@ -143,7 +141,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     this.logger.info('部署 CDK Erigon 组件...');
 
     // 1. 如果启用了严格模式,部署无状态执行器
-    if (this.config.erigon_strict_mode) {
+    if (this.config.deployment_args.erigon_strict_mode) {
       await this.deployStatelessExecutor();
     }
 
@@ -188,20 +186,18 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
       stateless_executor: true,
       // 确保数据库配置正确传递
       prover_db: {
-        hostname: this.config.database?.host || '127.0.0.1',
-        port: this.config.database?.port || 5432,
-        name: this.config.database?.prover_db?.name || 'prover_db',
-        user: this.config.database?.prover_db?.user || 'prover_user',
-        password: this.config.database?.prover_db?.password || 'redacted'
+        hostname: this.config.database?.postgres_host,
+        port: this.config.database?.postgres_port,
+        name: this.config.database?.prover_db?.name,
+        user: this.config.database?.prover_db?.user,
+        password: this.config.database?.prover_db?.password
       },
       // 添加部署后缀
-      deployment_suffix: this.config.deployment_suffix || '',
+      deployment_suffix: this.config.deployment_args.deployment_suffix || '',
       // 确保端口配置正确传递
-      zkevm_executor_port: this.config.prover?.prover_config?.executor_port || 50071,
-      zkevm_hash_db_port: this.config.prover?.prover_config?.hash_db_port || 50061,
-      zkevm_aggregator_port: this.config.ports?.zkevm_aggregator_port || 50081,
-      // 如果有 Prover 专用配置,使用专用配置
-      ...(this.config.prover?.prover_config || {})
+      zkevm_executor_port: this.config.deployment_args.zkevm_executor_port || 50071,
+      zkevm_hash_db_port: this.config.deployment_args.zkevm_hash_db_port || 50061,
+      zkevm_aggregator_port: this.config.deployment_args.zkevm_aggregator_port || 50081,
     });
 
     // 写入配置文件
@@ -230,15 +226,15 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
   }
 
   private isCDKValidium(): boolean {
-    return this.config.consensus_contract_type === 'cdk-validium';
+    return this.config.deployment_args.consensus_contract_type === 'cdk-validium';
   }
 
   private async prepareProverConfig(proverType: string): Promise<void> {
     const config = this.renderTemplate(`${proverType}-prover-config.toml`, {
-      PROVER_PRIVATE_KEY: this.config.accounts.zkevm_l2_proofsigner_private_key,
-      PROVER_OPERATOR: this.config.accounts.zkevm_l2_proofsigner_address,
-      PROVER_OPERATOR_COMMIT_DELAY: this.config.prover?.prover_config?.executor_port || 0,
-      PROVER_OPERATOR_PROOF_DELAY: this.config.prover?.prover_config?.hash_db_port || 0,
+      PROVER_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_proofsigner_private_key,
+      PROVER_OPERATOR: this.config.deployment_args.zkevm_l2_proofsigner_address,
+      PROVER_OPERATOR_COMMIT_DELAY: this.config.deployment_args.zkevm_executor_port,
+      PROVER_OPERATOR_PROOF_DELAY: this.config.deployment_args.zkevm_hash_db_port,
       PROVER_OPERATOR_COMMIT_SLOT_SIZE: 1,
       PROVER_OPERATOR_PROOF_SLOT_SIZE: 1,
       PROVER_OPERATOR_COMMIT_PROOF_RATIO: 1,
@@ -248,10 +244,10 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
 
   private async prepareSequencerConfig(): Promise<void> {
     const config = this.renderTemplate('sequencer-config.toml', {
-      SEQUENCER_PRIVATE_KEY: this.config.accounts.zkevm_l2_sequencer_private_key,
-      SEQUENCER_OPERATOR: this.config.accounts.zkevm_l2_sequencer_address,
-      SEQUENCER_OPERATOR_COMMIT_DELAY: this.config.prover?.prover_config?.executor_port || 0,
-      SEQUENCER_OPERATOR_PROOF_DELAY: this.config.prover?.prover_config?.hash_db_port || 0,
+      SEQUENCER_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_sequencer_private_key,
+      SEQUENCER_OPERATOR: this.config.deployment_args.zkevm_l2_sequencer_address,
+      SEQUENCER_OPERATOR_COMMIT_DELAY: this.config.deployment_args.zkevm_executor_port,
+      SEQUENCER_OPERATOR_PROOF_DELAY: this.config.deployment_args.zkevm_hash_db_port,
       SEQUENCER_OPERATOR_COMMIT_SLOT_SIZE: 1,
       SEQUENCER_OPERATOR_PROOF_SLOT_SIZE: 1,
       SEQUENCER_OPERATOR_COMMIT_PROOF_RATIO: 1,
@@ -261,24 +257,24 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
 
   private async prepareValidatorConfig(): Promise<void> {
     const config = this.renderTemplate('validator-config.toml', {
-      VALIDATOR_PRIVATE_KEY: this.config.accounts.zkevm_l2_admin_private_key,
-      VALIDATOR_OPERATOR: this.config.accounts.zkevm_l2_admin_address,
+      VALIDATOR_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_admin_private_key,
+      VALIDATOR_OPERATOR: this.config.deployment_args.zkevm_l2_admin_address,
     });
     this.writeConfig('validator-config.toml', config);
   }
 
   private async prepareWitnessConfig(): Promise<void> {
     const config = this.renderTemplate('witness-config.toml', {
-      WITNESS_PRIVATE_KEY: this.config.accounts.zkevm_l2_loadtest_private_key,
-      WITNESS_OPERATOR: this.config.accounts.zkevm_l2_loadtest_address,
+      WITNESS_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_loadtest_private_key,
+      WITNESS_OPERATOR: this.config.deployment_args.zkevm_l2_loadtest_address,
     });
     this.writeConfig('witness-config.toml', config);
   }
 
   private async prepareL1Config(): Promise<void> {
     const config = this.renderTemplate('l1-config.toml', {
-      L1_PRIVATE_KEY: this.config.accounts.zkevm_l2_l1testing_private_key,
-      L1_OPERATOR: this.config.accounts.zkevm_l2_l1testing_address,
+      L1_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_l1testing_private_key,
+      L1_OPERATOR: this.config.deployment_args.zkevm_l2_l1testing_address,
     });
     this.writeConfig('l1-config.toml', config);
   }
@@ -286,81 +282,9 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
   private async prepareL2Config(): Promise<void> {
     const template = this.readTemplate('l2-config.toml');
     const config = this.renderTemplate(template, {
-      L2_PRIVATE_KEY: this.config.accounts.zkevm_l2_claimtxmanager_private_key,
-      L2_OPERATOR: this.config.accounts.zkevm_l2_claimtxmanager_address,
+      L2_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_claimtxmanager_private_key,
+      L2_OPERATOR: this.config.deployment_args.zkevm_l2_claimtxmanager_address,
     });
     this.writeConfig('l2-config.toml', config);
-  }
-
-  private async prepareL3Config(): Promise<void> {
-    const template = this.readTemplate('l3-config.toml');
-    const config = this.renderTemplate(template, {
-      L3_PRIVATE_KEY: this.config.accounts.zkevm_l2_timelock_private_key,
-      L3_OPERATOR: this.config.accounts.zkevm_l2_timelock_address,
-    });
-    this.writeConfig('l3-config.toml', config);
-  }
-
-  private async prepareL4Config(): Promise<void> {
-    const template = this.readTemplate('l4-config.toml');
-    const config = this.renderTemplate(template, {
-      L4_PRIVATE_KEY: this.config.accounts.zkevm_l2_agglayer_private_key,
-      L4_OPERATOR: this.config.accounts.zkevm_l2_agglayer_address,
-    });
-    this.writeConfig('l4-config.toml', config);
-  }
-
-  private async prepareL5Config(): Promise<void> {
-    const template = this.readTemplate('l5-config.toml');
-    const config = this.renderTemplate(template, {
-      L5_PRIVATE_KEY: this.config.accounts.zkevm_l2_dac_private_key,
-      L5_OPERATOR: this.config.accounts.zkevm_l2_dac_address,
-    });
-    this.writeConfig('l5-config.toml', config);
-  }
-
-  private async prepareL6Config(): Promise<void> {
-    const template = this.readTemplate('l6-config.toml');
-    const config = this.renderTemplate(template, {
-      L6_PRIVATE_KEY: this.config.accounts.zkevm_l2_proofsigner_private_key,
-      L6_OPERATOR: this.config.accounts.zkevm_l2_proofsigner_address,
-    });
-    this.writeConfig('l6-config.toml', config);
-  }
-
-  private async prepareL7Config(): Promise<void> {
-    const template = this.readTemplate('l7-config.toml');
-    const config = this.renderTemplate(template, {
-      L7_PRIVATE_KEY: this.config.accounts.zkevm_l2_l1testing_private_key,
-      L7_OPERATOR: this.config.accounts.zkevm_l2_l1testing_address,
-    });
-    this.writeConfig('l7-config.toml', config);
-  }
-
-  private async prepareL8Config(): Promise<void> {
-    const template = this.readTemplate('l8-config.toml');
-    const config = this.renderTemplate(template, {
-      L8_PRIVATE_KEY: this.config.accounts.zkevm_l2_claimsponsor_private_key,
-      L8_OPERATOR: this.config.accounts.zkevm_l2_claimsponsor_address,
-    });
-    this.writeConfig('l8-config.toml', config);
-  }
-
-  private async prepareL9Config(): Promise<void> {
-    const template = this.readTemplate('l9-config.toml');
-    const config = this.renderTemplate(template, {
-      L9_PRIVATE_KEY: this.config.accounts.zkevm_l2_aggoracle_private_key,
-      L9_OPERATOR: this.config.accounts.zkevm_l2_aggoracle_address,
-    });
-    this.writeConfig('l9-config.toml', config);
-  }
-
-  private async prepareL10Config(): Promise<void> {
-    const template = this.readTemplate('l10-config.toml');
-    const config = this.renderTemplate(template, {
-      L10_PRIVATE_KEY: this.config.accounts.zkevm_l2_claimtx_private_key,
-      L10_OPERATOR: this.config.accounts.zkevm_l2_claimtx_address,
-    });
-    this.writeConfig('l10-config.toml', config);
   }
 } 

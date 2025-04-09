@@ -5,15 +5,6 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import { Client } from 'pg';
 
-// 默认 PostgreSQL 配置
-const DEFAULT_POSTGRES_CONFIG = {
-  use_remote: false,
-  host: '127.0.0.1',
-  port: 5432,
-  master_db: 'master',
-  master_user: 'master_user',
-  master_password: 'master_password'
-};
 
 // 数据库配置接口
 interface DatabaseConfig {
@@ -40,7 +31,7 @@ export class DatabaseDeployer extends BaseDeployer {
 
       if (this.config.database?.use_remote) {
         // 使用远程数据库
-        this.logger.info('使用远程数据库:', this.config.database.host);
+        this.logger.info('使用远程数据库:', this.config.database.postgres_host);
         await this.initializeRemoteDatabase(dbConfigs);
       } else {
         // 部署本地数据库
@@ -66,20 +57,20 @@ export class DatabaseDeployer extends BaseDeployer {
   private async initializeRemoteDatabase(dbConfigs: Record<string, DatabaseConfig>): Promise<void> {
     this.logger.info('初始化远程数据库...');
 
-    const dbConfig = this.config.database || DEFAULT_POSTGRES_CONFIG;
+    const dbConfig = this.config.database
     const client = new Client({
-      host: dbConfig.host,
-      port: dbConfig.port,
-      database: dbConfig.master_db,
-      user: dbConfig.master_user,
-      password: dbConfig.master_password
+      host: dbConfig.postgres_host,
+      port: dbConfig.postgres_port,
+      database: dbConfig.postgres_master_db,
+      user: dbConfig.postgres_master_user,
+      password: dbConfig.postgres_master_password
     });
 
     try {
       await client.connect();
       
       // 执行初始化脚本
-      const initScript = this.readInitSql(`init${this.config.deployment_suffix}.sql`);
+      const initScript = this.readInitSql(`init${this.config.deployment_args.deployment_suffix}.sql`);
       await client.query(initScript);
       
       // 对于每个数据库,如果有特定的初始化脚本,也需要执行
@@ -169,20 +160,20 @@ export class DatabaseDeployer extends BaseDeployer {
     };
 
     // 根据 sequencer 类型选择需要部署的数据库
-    if (this.config.sequencer_type === 'erigon') {
+    if (this.config.deployment_args.sequencer_type === 'erigon') {
       return {
         ...CENTRAL_ENV_DBS,
         ...PROVER_DB,
         ...CDK_ERIGON_DBS
       };
-    } else if (this.config.sequencer_type === 'zkevm') {
+    } else if (this.config.deployment_args.sequencer_type === 'zkevm') {
       return {
         ...CENTRAL_ENV_DBS,
         ...PROVER_DB,
         ...ZKEVM_NODE_DBS
       };
     } else {
-      throw new Error(`不支持的 sequencer 类型: ${this.config.sequencer_type}`);
+      throw new Error(`不支持的 sequencer 类型: ${this.config.deployment_args.sequencer_type}`);
     }
   }
 
@@ -198,17 +189,17 @@ export class DatabaseDeployer extends BaseDeployer {
     const initScriptTemplate = this.readInitSql('init.sql');
     const renderedScript = this.renderInitScript(initScriptTemplate, dbConfigs);
     
-    const outputPath = path.join(buildDir, `init${this.config.deployment_suffix}.sql`);
+    const outputPath = path.join(buildDir, `init${this.config.deployment_args.deployment_suffix}.sql`);
     writeFileSync(outputPath, renderedScript);
   }
 
   private renderInitScript(template: string, dbConfigs: Record<string, DatabaseConfig>): string {
     let script = template;
-    const dbConfig = this.config.database || DEFAULT_POSTGRES_CONFIG;
+    const dbConfig = this.config.database;
 
     // 替换主数据库配置
-    script = script.replace(/\{\{master_db\}\}/g, dbConfig.master_db);
-    script = script.replace(/\{\{master_user\}\}/g, dbConfig.master_user);
+    script = script.replace(/\{\{postgres_master_db\}\}/g, dbConfig.postgres_master_db);
+    script = script.replace(/\{\{postgres_master_user\}\}/g, dbConfig.postgres_master_user);
 
     // 替换数据库配置
     let dbCreationScript = '';

@@ -20,13 +20,13 @@ export class PathManager {
     // deployment 目录
     this.deploymentDir = process.cwd();
     // 项目根目录
-    this.projectRoot = path.dirname(this.deploymentDir);
+    this.projectRoot = this.deploymentDir;
     // build 目录
     this.buildDir = path.join(this.deploymentDir, 'build');
     // data 目录
     this.dataDir = path.join(this.deploymentDir, 'data');
     // templates 目录
-    this.templatesDir = path.join(this.projectRoot, 'templates');
+    this.templatesDir = path.join(this.deploymentDir, 'templates');
 
     // 确保必要的目录存在
     this.ensureDirectoryExists(this.buildDir);

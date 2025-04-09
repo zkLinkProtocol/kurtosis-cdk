@@ -16,7 +16,7 @@ export class L2ContractDeployer extends BaseDeployer {
       const l2RpcUrl = this.getL2RpcUrl();
 
       // 执行 L2 合约部署
-      const contractServiceName = `contracts${this.config.deployment_suffix}`;
+      const contractServiceName = `contracts${this.config.deployment_args.deployment_suffix}`;
       const cmd = `docker exec ${contractServiceName} \
         /bin/sh -c "export l2_rpc_url=${l2RpcUrl} && \
         chmod +x /opt/contract-deploy/run-l2-contract-setup.sh && \
@@ -33,10 +33,10 @@ export class L2ContractDeployer extends BaseDeployer {
 
   private getL2RpcUrl(): string {
     // 根据 sequencer 类型获取 L2 RPC URL
-    if (this.config.sequencer_type === 'erigon') {
-      return `http://cdk-erigon${this.config.deployment_suffix}:8545`;
+    if (this.config.deployment_args.sequencer_type === 'erigon') {
+      return `http://cdk-erigon${this.config.deployment_args.deployment_suffix}:8545`;
     } else {
-      return `http://zkevm-node-rpc${this.config.deployment_suffix}:8545`;
+      return `http://zkevm-node-rpc${this.config.deployment_args.deployment_suffix}:8545`;
     }
   }
 } 
