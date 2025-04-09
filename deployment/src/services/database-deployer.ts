@@ -4,6 +4,9 @@ import { BaseDeployer } from './base-deployer';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import { Client } from 'pg';
+import { execSync } from 'child_process';
+import yaml from 'js-yaml';
+import { DatabaseComposeGenerator, DatabaseExtraConfig } from '../compose/database-compose-generator';
 
 
 // 数据库配置接口
@@ -20,30 +23,81 @@ export class DatabaseDeployer extends BaseDeployer {
   }
 
   public async deploy(): Promise<void> {
+    this.logger.info('部署数据库服务...');
+    
     try {
-      this.logger.info('开始部署数据库服务...');
+      // 生成 docker-compose 配置
+      const composePath = await this.generateDockerComposeConfig();
 
-      // 1. 获取数据库配置
-      const dbConfigs = this.getDbConfigs();
+      // 启动数据库服务
+      this.startDatabaseServices(composePath);
 
-      // 2. 准备初始化脚本
-      await this.prepareInitScript(dbConfigs);
-
-      if (this.config.database?.use_remote) {
-        // 使用远程数据库
-        this.logger.info('使用远程数据库:', this.config.database.postgres_host);
-        await this.initializeRemoteDatabase(dbConfigs);
-      } else {
-        // 部署本地数据库
-        this.logger.info('部署本地数据库服务');
-        await this.deployLocalDatabase(dbConfigs);
-      }
+      // 等待数据库服务启动
+      await this.waitForDatabaseStartup();
 
       this.logger.info('数据库服务部署完成');
     } catch (error) {
-      this.logger.error('数据库部署失败:', error);
+      this.logger.error('数据库服务部署失败:', error);
       throw error;
     }
+  }
+
+  private async generateDockerComposeConfig(): Promise<string> {
+    // 使用新的compose生成器
+    const composeGenerator = new DatabaseComposeGenerator(
+      this.config, 
+      this.logger,
+      { name: 'zklink-network' }
+    );
+
+    const extraConfig: DatabaseExtraConfig = {
+      dataDir: path.join(this.pathManager.getDataDir())
+    };
+
+    const composeConfig = await composeGenerator.generate(extraConfig);
+
+    // 写入配置文件
+    const composePath = path.join(this.pathManager.getBuildDir(), 'database-docker-compose.yml');
+    writeFileSync(composePath, yaml.dump(composeConfig));
+    return composePath;
+  }
+
+  private startDatabaseServices(composePath: string): void {
+    execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
+  }
+
+  private async waitForDatabaseStartup(): Promise<void> {
+    this.logger.info('等待数据库服务启动...');
+    
+    const maxRetries = 60; // 最多等待 5 分钟
+    let retries = 0;
+    
+    while (retries < maxRetries) {
+      try {
+        // 检查主数据库
+        execSync(
+          `PGPASSWORD=${this.config.database.postgres_master_password} psql -h localhost -U ${this.config.database.postgres_master_user} -d ${this.config.database.postgres_master_db} -c "\\q"`,
+          { stdio: 'pipe' }
+        );
+
+        // 检查 Blockscout 数据库
+        execSync(
+          'PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d blockscout -c "\\q"',
+          { stdio: 'pipe' }
+        );
+
+        this.logger.info('数据库服务已成功启动！');
+        return;
+      } catch (error) {
+        // 忽略错误，继续重试
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 5000)); // 等待 5 秒
+      retries++;
+      this.logger.info(`数据库服务正在启动中... (${retries}/${maxRetries})`);
+    }
+    
+    throw new Error('数据库服务启动超时');
   }
 
   private async deployLocalDatabase(dbConfigs: Record<string, DatabaseConfig>): Promise<void> {

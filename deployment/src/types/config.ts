@@ -202,6 +202,7 @@ export interface L1Args {
   use_previously_deployed_contracts: boolean;
   erigon_datadir_archive: string | null;
   anvil_state_file: string | null;
+  anvil_script_path?: string;
 }
 
 // L2配置
