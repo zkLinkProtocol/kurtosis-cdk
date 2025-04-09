@@ -5,15 +5,15 @@ import { execSync } from 'child_process';
 import { writeFileSync } from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
+import { L1ConfigGenerator } from '../configs/l1-config-generator';
 
 interface DockerComposeService {
   image: string;
-  ports: string[];
-  volumes?: string[];
-  command: string;
-  depends_on?: string[];
   entrypoint?: string;
+  command?: string;
   environment?: Record<string, string>;
+  ports?: string[];
+  volumes?: string[];
 }
 
 interface DockerComposeConfig {
@@ -61,15 +61,15 @@ export class L1Deployer extends BaseDeployer {
     const args = this.config.deployment_args;
     const serviceName = `anvil${args.deployment_suffix}`;
 
-    // 从模板生成启动脚本
-    const templatePath = path.join(this.pathManager.getTemplatesDir(), 'l1-deployer', 'start-anvil.sh.tmpl');
+    // 使用配置生成器生成启动脚本
     const scriptPath = path.join(this.pathManager.getBuildDir(), 'start-anvil.sh');
+    const l1ConfigGenerator = new L1ConfigGenerator(this.config);
     
     // 确保构建目录存在
     execSync(`mkdir -p ${this.pathManager.getBuildDir()}`);
     
-    // 复制模板并设置执行权限
-    execSync(`cp ${templatePath} ${scriptPath}`);
+    // 生成启动脚本并设置执行权限
+    await l1ConfigGenerator.generateAnvilStartScript(scriptPath);
     execSync(`chmod +x ${scriptPath}`);
 
     // 添加 Anvil 服务配置
@@ -77,12 +77,6 @@ export class L1Deployer extends BaseDeployer {
       image: args.anvil_image,
       entrypoint: '/bin/sh',
       command: '/app/start-anvil.sh',
-      environment: {
-        BLOCK_TIME: (args.l1_anvil_block_time || 1).toString(),
-        SLOTS_IN_EPOCH: (args.l1_anvil_slots_in_epoch || 1).toString(),
-        CHAIN_ID: args.l1_chain_id.toString(),
-        MNEMONIC: args.l1_preallocated_mnemonic
-      },
       ports: ['8545:8545'],
       volumes: [
         `${scriptPath}:/app/start-anvil.sh`,

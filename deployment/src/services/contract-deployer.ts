@@ -4,35 +4,35 @@ import { execSync } from 'child_process';
 import path from 'path';
 import { BaseDeployer } from './base-deployer';
 import { readFileSync, writeFileSync } from 'fs';
+import { DEPLOYMENT_ARTIFACTS } from '../types/constants'
 
 // 合约配置接口
-interface ContractConfig {
+interface ArtifactConfig {
   name: string;
-  args: string[];
-  value?: string;
-  libraries?: Record<string, string>;
+  file: string;
 }
 
 // 扩展 DeploymentConfig 接口
-interface ExtendedDeploymentConfig extends DeploymentConfig {
-  contracts?: ContractConfig[];
+interface ContractDeploymentConfig extends DeploymentConfig {
+  artifacts?: ArtifactConfig[];
 }
 
 export class ContractDeployer extends BaseDeployer {
-  private readonly extendedConfig: ExtendedDeploymentConfig;
+  private readonly contractConfig: ContractDeploymentConfig;
 
   constructor(
-    config: ExtendedDeploymentConfig,
+    config: ContractDeploymentConfig,
     logger: Logger
   ) {
     super(config, logger);
-    this.extendedConfig = config;
+    this.contractConfig = config;
   }
 
   public async deploy(): Promise<void> {
     try {
       this.logger.info('开始部署合约...');
-
+      // 0. 生成合约配置
+      await this.generateContractConfig();
       // 1. 生成部署脚本
       await this.generateDeployScript();
 
@@ -47,13 +47,44 @@ export class ContractDeployer extends BaseDeployer {
     }
   }
 
+  private async generateContractConfig(): Promise<void> {
+    this.logger.info('生成合约配置...');
+    let artifacts = [];
+    for (const artifact of DEPLOYMENT_ARTIFACTS) {
+      artifacts.push({
+        name: artifact.name,
+        file: artifact.file
+      })
+    }
+
+    if (this.contractConfig.deployment_args.use_previously_deployed_contracts) {
+      artifacts.push({
+        name: 'genesis.json',
+        file: './templates/contract-deploy/genesis.json'
+      })
+      artifacts.push({
+        name: 'combined.json',
+        file: './templates/contract-deploy/combined.json'
+      })
+      artifacts.push({
+        name: 'dynamic-' + this.contractConfig.deployment_args.chain_name + '-conf.json',
+        file: './templates/contract-deploy/dynamic-' + this.contractConfig.deployment_args.chain_name + '-conf.json'
+      })
+      artifacts.push({
+        name: 'dynamic-' + this.contractConfig.deployment_args.chain_name + '-allocs.json',
+        file: './templates/contract-deploy/dynamic-' + this.contractConfig.deployment_args.chain_name + '-allocs.json'
+      })
+    }
+    this.contractConfig.artifacts = artifacts;
+  }
+
   private async generateDeployScript(): Promise<void> {
     this.logger.info('生成部署脚本...');
 
     // 1. 渲染模板
-    const contracts = this.extendedConfig.contracts || [];
+    const contracts = this.contractConfig.artifacts || [];
     const renderedContent = this.renderTemplate('contract-deploy/deploy.ts', {
-      contracts: contracts.map(this.formatContractConfig)
+      // contracts: contracts.map(this.formatContractConfig)
     });
 
     // 2. 写入文件
@@ -66,15 +97,15 @@ export class ContractDeployer extends BaseDeployer {
     });
   }
 
-  private formatContractConfig(config: ContractConfig): string {
-    const args = config.args.map(arg => `'${arg}'`).join(', ');
-    const value = config.value ? `, { value: '${config.value}' }` : '';
-    const libraries = config.libraries ? 
-      `, { libraries: ${JSON.stringify(config.libraries)} }` : 
-      '';
+  // private formatContractConfig(config: ArtifactConfig): string {
+  //   const args = config.args.map(arg => `'${arg}'`).join(', ');
+  //   const value = config.value ? `, { value: '${config.value}' }` : '';
+  //   const libraries = config.libraries ? 
+  //     `, { libraries: ${JSON.stringify(config.libraries)} }` : 
+  //     '';
 
-    return `await deploy('${config.name}', [${args}]${value}${libraries});`;
-  }
+  //   return `await deploy('${config.name}', [${args}]${value}${libraries});`;
+  // }
 
   private async compileContracts(contractName: string): Promise<void> {
     this.logger.info('编译合约...');
