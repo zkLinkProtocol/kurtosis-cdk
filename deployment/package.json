@@ -11,7 +11,8 @@
     "deploy": "ts-node src/index.ts",
     "deploy:test": "ts-node src/index.ts test.yml",
     "deploy:sepolia": "ts-node src/index.ts deploy-cdk-to-sepolia.yml",
-    "test": "jest"
+    "test": "jest",
+    "down": "./down.sh"
   },
   "keywords": [],
   "author": "",
