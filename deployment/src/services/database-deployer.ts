@@ -1,5 +1,5 @@
 import { Logger } from '../utils/logger';
-import { DeploymentConfig } from '../types/config';
+import { DatabaseDeploymentConfig, DeploymentConfig } from '../types/config';
 import { BaseDeployer } from './base-deployer';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
@@ -7,7 +7,8 @@ import { Client } from 'pg';
 import { execSync } from 'child_process';
 import yaml from 'js-yaml';
 import { DatabaseComposeGenerator, DatabaseExtraConfig } from '../compose/database-compose-generator';
-
+import { getDbConfigs } from '../utils/config-loader';
+import { ConfigGenerator } from '../utils/config-generator';
 
 // 数据库配置接口
 interface DatabaseConfig {
@@ -18,20 +19,32 @@ interface DatabaseConfig {
 }
 
 export class DatabaseDeployer extends BaseDeployer {
+  private readonly dbConfigs: DatabaseDeploymentConfig[];
+  private readonly initScript: string;
+
   constructor(config: DeploymentConfig, logger: Logger) {
     super(config, logger);
+    this.dbConfigs = getDbConfigs(this.config);
+    this.initScript = this.readInitSql(`init${this.config.deployment_args.deployment_suffix}.sql`);
   }
 
   public async deploy(): Promise<void> {
     this.logger.info('部署数据库服务...');
     
     try {
-      // 生成 docker-compose 配置
-      const composePath = await this.generateDockerComposeConfig();
+      // 生成 init.sql
+      await this.generateInitScript();
 
-      // 启动数据库服务
-      this.startDatabaseServices(composePath);
-
+      if (this.config.database.use_remote) {
+        // 初始化远程数据库
+        await this.initializeRemoteDatabase();
+      } else {
+        // 生成 docker-compose 配置
+        await this.generateDockerComposeConfig();
+        // 启动数据库服务
+        this.startDatabaseServices();
+      }
+      
       // 等待数据库服务启动
       await this.waitForDatabaseStartup();
 
@@ -42,7 +55,7 @@ export class DatabaseDeployer extends BaseDeployer {
     }
   }
 
-  private async generateDockerComposeConfig(): Promise<string> {
+  private async generateDockerComposeConfig(): Promise<void> {
     // 使用新的compose生成器
     const composeGenerator = new DatabaseComposeGenerator(
       this.config, 
@@ -59,11 +72,6 @@ export class DatabaseDeployer extends BaseDeployer {
     // 写入配置文件
     const composePath = path.join(this.pathManager.getBuildDir(), 'database-docker-compose.yml');
     writeFileSync(composePath, yaml.dump(composeConfig));
-    return composePath;
-  }
-
-  private startDatabaseServices(composePath: string): void {
-    execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
   }
 
   private async waitForDatabaseStartup(): Promise<void> {
@@ -100,15 +108,14 @@ export class DatabaseDeployer extends BaseDeployer {
     throw new Error('数据库服务启动超时');
   }
 
-  private async deployLocalDatabase(dbConfigs: Record<string, DatabaseConfig>): Promise<void> {
-    this.logger.info('部署本地数据库...');
+  private async startDatabaseServices(): Promise<void> {
+    this.logger.info('启动本地数据库...');
 
     // 使用 Docker Compose 启动数据库服务
-    // await this.startServices('db');
-    // await this.waitForHealthy('db');
+    execSync(`docker compose -f ${this.pathManager.getBuildDir()}/database-docker-compose.yml up -d`, { stdio: 'inherit' });
   }
 
-  private async initializeRemoteDatabase(dbConfigs: Record<string, DatabaseConfig>): Promise<void> {
+  private async initializeRemoteDatabase(): Promise<void> {
     this.logger.info('初始化远程数据库...');
 
     const dbConfig = this.config.database
@@ -128,10 +135,10 @@ export class DatabaseDeployer extends BaseDeployer {
       await client.query(initScript);
       
       // 对于每个数据库,如果有特定的初始化脚本,也需要执行
-      for (const [key, db] of Object.entries(dbConfigs)) {
-        if (db.init) {
-          await client.query(`\\c ${db.name}`);
-          await client.query(db.init);
+      for (const dbConfig of this.dbConfigs) {
+        if (dbConfig.init) {
+          const specialInitScript = this.readInitSql(dbConfig.init, true);
+          await client.query(specialInitScript);
         }
       }
 
@@ -144,133 +151,20 @@ export class DatabaseDeployer extends BaseDeployer {
     }
   }
 
-  private getDbConfigs(): Record<string, DatabaseConfig> {
-    // 中心环境数据库
-    const CENTRAL_ENV_DBS: Record<string, DatabaseConfig> = {
-      aggregator_db: {
-        name: 'aggregator_db',
-        user: 'aggregator_user',
-        password: 'redacted'
-      },
-      aggregator_syncer_db: {
-        name: 'aggregator_syncer_db',
-        user: 'aggregator_syncer_db_user',
-        password: 'redacted'
-      },
-      bridge_db: {
-        name: 'bridge_db',
-        user: 'bridge_user',
-        password: 'redacted'
-      },
-      dac_db: {
-        name: 'dac_db',
-        user: 'dac_user',
-        password: 'redacted'
-      },
-      sovereign_bridge_db: {
-        name: 'sovereign_bridge_db',
-        user: 'sovereign_bridge_user',
-        password: 'redacted'
-      }
-    };
-
-    // Prover 数据库
-    const PROVER_DB: Record<string, DatabaseConfig> = {
-      prover_db: {
-        name: 'prover_db',
-        user: 'prover_user',
-        password: 'redacted',
-        init: this.readInitSql('prover-db-init.sql')
-      }
-    };
-
-    // zkEVM 节点数据库
-    const ZKEVM_NODE_DBS: Record<string, DatabaseConfig> = {
-      event_db: {
-        name: 'event_db',
-        user: 'event_user',
-        password: 'redacted',
-        init: this.readInitSql('event-db-init.sql')
-      },
-      pool_db: {
-        name: 'pool_db',
-        user: 'pool_user',
-        password: 'redacted'
-      },
-      state_db: {
-        name: 'state_db',
-        user: 'state_user',
-        password: 'redacted'
-      }
-    };
-
-    // CDK Erigon 数据库
-    const CDK_ERIGON_DBS: Record<string, DatabaseConfig> = {
-      pool_manager_db: {
-        name: 'pool_manager_db',
-        user: 'pool_manager_user',
-        password: 'redacted'
-      }
-    };
-
-    // 根据 sequencer 类型选择需要部署的数据库
-    if (this.config.deployment_args.sequencer_type === 'erigon') {
-      return {
-        ...CENTRAL_ENV_DBS,
-        ...PROVER_DB,
-        ...CDK_ERIGON_DBS
-      };
-    } else if (this.config.deployment_args.sequencer_type === 'zkevm') {
-      return {
-        ...CENTRAL_ENV_DBS,
-        ...PROVER_DB,
-        ...ZKEVM_NODE_DBS
-      };
-    } else {
-      throw new Error(`不支持的 sequencer 类型: ${this.config.deployment_args.sequencer_type}`);
-    }
-  }
-
-  private readInitSql(filename: string): string {
-    const filePath = path.join(this.pathManager.getTemplatesDir(), 'databases', filename);
-    return readFileSync(filePath, 'utf8');
-  }
-
-  private async prepareInitScript(dbConfigs: Record<string, DatabaseConfig>): Promise<void> {
+  private async generateInitScript(): Promise<void> {
     this.logger.info('准备数据库初始化脚本...');
 
-    const buildDir = this.pathManager.getBuildDir();
-    const initScriptTemplate = this.readInitSql('init.sql');
-    const renderedScript = this.renderInitScript(initScriptTemplate, dbConfigs);
-    
-    const outputPath = path.join(buildDir, `init${this.config.deployment_args.deployment_suffix}.sql`);
-    writeFileSync(outputPath, renderedScript);
+    const configGenerator = new ConfigGenerator(this.config);
+    await configGenerator.renderTemplate('databases/init.sql', this.dbConfigs, `init${this.config.deployment_args.deployment_suffix}.sql`);
   }
 
-  private renderInitScript(template: string, dbConfigs: Record<string, DatabaseConfig>): string {
-    let script = template;
-    const dbConfig = this.config.database;
-
-    // 替换主数据库配置
-    script = script.replace(/\{\{postgres_master_db\}\}/g, dbConfig.postgres_master_db);
-    script = script.replace(/\{\{postgres_master_user\}\}/g, dbConfig.postgres_master_user);
-
-    // 替换数据库配置
-    let dbCreationScript = '';
-    for (const [key, db] of Object.entries(dbConfigs)) {
-      dbCreationScript += `
--- 创建数据库 ${db.name}
-CREATE DATABASE ${db.name};
-
--- 创建用户并授权
-CREATE USER ${db.user} WITH PASSWORD '${db.password}';
-GRANT ALL PRIVILEGES ON DATABASE ${db.name} TO ${db.user};
-
-${db.init ? `\\c ${db.name}\n${db.init}` : ''}
-`;
+  private readInitSql(filename: string, specialInitScript?: boolean): string {
+    if (specialInitScript) {
+      const initScriptPath = path.join(this.pathManager.getTemplatesDir(), 'databases', filename);
+      return readFileSync(initScriptPath, 'utf8');
+    } else {
+      const initScriptPath = path.join(this.pathManager.getBuildDir(), filename);
+      return readFileSync(initScriptPath, 'utf8');
     }
-
-    script = script.replace(/\{\{db_creation\}\}/g, dbCreationScript);
-    return script;
   }
 } 

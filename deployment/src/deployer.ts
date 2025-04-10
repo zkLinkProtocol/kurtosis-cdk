@@ -37,39 +37,62 @@ export class CDKDeployer {
 
       // 部署 L1 环境
       if (this.config.deployment_stages.deploy_l1) {
+        this.logger.info('部署 L1 环境...');
         await this.deployL1Environment();
+      } else {
+        this.logger.info('跳过部署 L1 环境...');
       }
 
       // 部署 L1 合约
       if (this.config.deployment_stages.deploy_zkevm_contracts_on_l1) {
+        this.logger.info('部署 L1 合约...');
         await this.deployZkEVMContracts();
         // 获取合约地址
         this.contractAddresses = await this.getContractAddresses();
+      } else {
+        this.logger.info('跳过部署 L1 合约...');
       }
 
       // 部署数据库
       if (this.config.deployment_stages.deploy_databases) {
+        this.logger.info('部署数据库...');
         await this.deployDatabases();
+      } else {
+        this.logger.info('跳过部署数据库...');
       }
 
       // 部署中心环境
       if (this.config.deployment_stages.deploy_cdk_central_environment) {
+        this.logger.info('部署中心环境...');
         await this.deployCDKCentralEnvironment();
 
         // 部署 L2 合约
         if (this.config.deployment_stages.deploy_l2_contracts) {
+          this.logger.info('部署 L2 合约...');
           const l2ContractDeployer = new L2ContractDeployer(this.config, this.logger);
           await l2ContractDeployer.deploy(true);
+        } else {
+          this.logger.info('跳过部署 L2 合约...');
         }
+      } else {
+        this.logger.info('跳过部署中心环境...');  
       }
 
       // 部署 Agglayer
       if (this.config.deployment_stages.deploy_agglayer) {
+        this.logger.info('部署 Agglayer...');
         await this.deployAggLayer();
+      } else {
+        this.logger.info('跳过部署 Agglayer...');
       }
 
       // 部署额外服务
-      await this.deployAdditionalServices();
+      if (this.config.deployment_args.additional_services.length > 0) {
+        this.logger.info('部署额外服务...');
+        await this.deployAdditionalServices();
+      } else {
+        this.logger.info('跳过部署额外服务...');
+      }
 
       this.logger.info('CDK 环境部署完成');
     } catch (error) {
@@ -79,14 +102,11 @@ export class CDKDeployer {
   }
 
   private async deployL1Environment(): Promise<void> {
-    this.logger.info('部署 L1 环境...');
     const l1Deployer = new L1Deployer(this.config, this.logger);
     await l1Deployer.deploy();
   }
 
   private async deployZkEVMContracts(): Promise<void> {
-    this.logger.info('开始部署 zkEVM 合约...');
-    
     try {
       await this.contractDeployer.deploy();
       this.logger.info('zkEVM 合约部署完成');
@@ -102,7 +122,7 @@ export class CDKDeployer {
     const combinedJsonPath = '/opt/zkevm/combined.json';
     
     try {
-      const result = execSync(`docker exec ${contractsService} cat ${combinedJsonPath}`);
+      const result = execSync(`docker exec -it ${contractsService} /bin/sh -c "cat ${combinedJsonPath}"`);
       return JSON.parse(result.toString());
     } catch (error) {
       this.logger.error('获取合约地址失败:', error);
@@ -111,8 +131,6 @@ export class CDKDeployer {
   }
 
   private async deployDatabases(): Promise<void> {
-    this.logger.info('开始部署数据库服务...');
-    
     try {
       await this.databaseDeployer.deploy();
       this.logger.info('数据库服务部署完成');
@@ -123,8 +141,6 @@ export class CDKDeployer {
   }
 
   private async deployCDKCentralEnvironment(): Promise<void> {
-    this.logger.info('开始部署 CDK 中心环境...');
-    
     try {
       const centralEnvDeployer = new CentralEnvironmentDeployer(
         this.config,
@@ -140,7 +156,6 @@ export class CDKDeployer {
   }
 
   private async deployAggLayer(): Promise<void> {
-    this.logger.info('部署 AggLayer...');
     const agglayerDeployer = new AgglayerDeployer(
       this.config,
       this.logger,
@@ -150,8 +165,6 @@ export class CDKDeployer {
   }
 
   private async deployAdditionalServices(): Promise<void> {
-    this.logger.info('部署额外服务...');
-
     try {
       const additionalServices = this.config.deployment_args.additional_services || [];
 

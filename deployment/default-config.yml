@@ -51,6 +51,7 @@ database:
     name: "prover_db"
     user: "prover_user"
     password: "redacted"
+    init: "databases/prover-db-init.sql"
 
   # ZkEVM Node Databases
   zkevm_node_dbs:
@@ -58,6 +59,7 @@ database:
       name: "event_db"
       user: "event_user"
       password: "redacted"
+      init: "databases/event-db-init.sql"
     pool_db:
       name: "pool_db"
       user: "pool_user"

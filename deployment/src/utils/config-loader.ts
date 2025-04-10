@@ -7,12 +7,12 @@ import {
   DeploymentArgs,
   OpStackArgs,
   DatabaseConfig,
+  DatabaseDeploymentConfig,
   OptimismPackage,
   StaticPorts
 } from '../types/config';
 import { PortConfig, PortSpec, sortPortConfigByValues } from '../types/ports';
 import { LOG_LEVEL, SEQUENCER_TYPE, SUPPORTED_FORK_IDS } from '../types/constants';
-import { ErigonDatabaseHelper, ZkEvmDatabaseHelper } from '../types/config';
 
 export class ConfigLoader {
   private readonly config: DeploymentConfig;
@@ -342,52 +342,6 @@ export class ConfigLoader {
   }
 
   /**
-   * 获取数据库配置
-   * @param suffix 服务后缀
-   * @param sequencerType 序列器类型
-   * @returns 数据库配置对象
-   */
-  public getDbConfigs(suffix: string, sequencerType: string): Record<string, DatabaseConfig> {
-    const { database } = this.config;
-    let dbs: ErigonDatabaseHelper | ZkEvmDatabaseHelper;
-
-    if (sequencerType === SEQUENCER_TYPE.CDK_ERIGON) {
-      dbs = {
-        central_env_dbs: database.central_env_dbs,
-        prover_db: database.prover_db,
-        cdk_erigon_dbs: database.cdk_erigon_dbs
-      };
-    } else if (sequencerType === SEQUENCER_TYPE.ZKEVM) {
-      dbs = {
-        central_env_dbs: database.central_env_dbs,
-        prover_db: database.prover_db,
-        zkevm_node_dbs: database.zkevm_node_dbs
-      };
-    } else {
-      throw new Error(`未配置 ${sequencerType} 类型的数据库配置`);
-    }
-
-    // 为每个数据库配置添加主机名和端口
-    const configs: Record<string, DatabaseConfig> = {};
-    const flattenedDbs = {
-      ...dbs.central_env_dbs,
-      ...('cdk_erigon_dbs' in dbs ? dbs.cdk_erigon_dbs : {}),
-      ...('zkevm_node_dbs' in dbs ? dbs.zkevm_node_dbs : {}),
-      prover_db: dbs.prover_db
-    };
-
-    for (const [key, value] of Object.entries(flattenedDbs)) {
-      configs[key] = {
-        ...database,
-        ...value,
-        postgres_host: database.use_remote ? database.postgres_host : this.getServiceName(suffix)
-      };
-    }
-
-    return configs;
-  }
-
-  /**
    * 获取服务名称
    * @param suffix 服务后缀
    * @returns 服务名称
@@ -399,3 +353,96 @@ export class ConfigLoader {
 
 // Example usage:
 // const configLoader = new ConfigLoader('/path/to/default-config.yml', '/path/to/custom-config.yml');
+
+export function getDbConfigs(config: DeploymentConfig): DatabaseDeploymentConfig[] {
+  const { database, deployment_args, deployment_stages, static_ports } = config;
+  let configs: DatabaseDeploymentConfig[] = [];
+  // 1. central_env_db
+  // 1.1 aggregator_db
+  configs.push({
+    hostname: database.postgres_host,
+    port: static_ports.database_start_port,
+    name: database.central_env_dbs.aggregator_db.name,
+    user: database.central_env_dbs.aggregator_db.user,
+    password: database.central_env_dbs.aggregator_db.password
+  });
+  // 1.2 aggregator_syncer_db
+  configs.push({
+    hostname: database.postgres_host,
+    port: static_ports.database_start_port,
+    name: database.central_env_dbs.aggregator_syncer_db.name,
+    user: database.central_env_dbs.aggregator_syncer_db.user,
+    password: database.central_env_dbs.aggregator_syncer_db.password
+  });
+  // 1.3 bridge_db
+  configs.push({
+    hostname: database.postgres_host,
+    port: static_ports.database_start_port,
+    name: database.central_env_dbs.bridge_db.name,
+    user: database.central_env_dbs.bridge_db.user,
+    password: database.central_env_dbs.bridge_db.password
+  });
+  // 1.4 dac_db
+  configs.push({
+    hostname: database.postgres_host,
+    port: static_ports.database_start_port,
+    name: database.central_env_dbs.dac_db.name,
+    user: database.central_env_dbs.dac_db.user,
+    password: database.central_env_dbs.dac_db.password
+  });
+  // 1.5 sovereign_bridge_db
+  configs.push({
+    hostname: database.postgres_host,
+    port: static_ports.database_start_port,
+    name: database.central_env_dbs.sovereign_bridge_db.name,
+    user: database.central_env_dbs.sovereign_bridge_db.user,
+    password: database.central_env_dbs.sovereign_bridge_db.password
+  });
+  // 2. prover_db
+  configs.push({
+    hostname: database.postgres_host,
+    port: static_ports.database_start_port,
+    name: database.prover_db.name,
+    user: database.prover_db.user,
+    password: database.prover_db.password,
+    init: database.prover_db.init
+  });
+  if (deployment_args.sequencer_type === SEQUENCER_TYPE.CDK_ERIGON) { 
+    // 3. cdk_erigon_dbs
+    configs.push({
+      hostname: database.postgres_host,
+      port: static_ports.database_start_port,
+      name: database.cdk_erigon_dbs.pool_manager_db.name,
+      user: database.cdk_erigon_dbs.pool_manager_db.user,
+      password: database.cdk_erigon_dbs.pool_manager_db.password
+    });
+  } else if (deployment_args.sequencer_type === SEQUENCER_TYPE.ZKEVM) {
+    // 3. zkevm_node_dbs
+    configs.push({
+      hostname: database.postgres_host,
+      port: static_ports.database_start_port,
+      name: database.zkevm_node_dbs.event_db.name,
+      user: database.zkevm_node_dbs.event_db.user,
+      password: database.zkevm_node_dbs.event_db.password,
+      init: database.zkevm_node_dbs.event_db.init
+    });
+    configs.push({
+      hostname: database.postgres_host,
+      port: static_ports.database_start_port,
+      name: database.zkevm_node_dbs.pool_db.name,
+      user: database.zkevm_node_dbs.pool_db.user, 
+      password: database.zkevm_node_dbs.pool_db.password,
+    });
+    configs.push({
+      hostname: database.postgres_host,
+      port: static_ports.database_start_port,
+      name: database.zkevm_node_dbs.state_db.name,
+      user: database.zkevm_node_dbs.state_db.user,
+      password: database.zkevm_node_dbs.state_db.password
+    });
+  } else {
+    throw new Error(`未配置 ${deployment_args.sequencer_type} 类型的数据库配置`);
+  }
+
+  return configs;
+}

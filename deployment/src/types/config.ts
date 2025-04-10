@@ -61,6 +61,7 @@ export interface DatabaseConfig {
     name: string;
     user: string;
     password: string;
+    init: string;
   };
 
   // zkEVM节点数据库
@@ -69,6 +70,7 @@ export interface DatabaseConfig {
       name: string;
       user: string;
       password: string;
+      init: string;
     };
     pool_db: {
       name: string;
@@ -90,6 +92,15 @@ export interface DatabaseConfig {
       password: string;
     };
   };
+}
+
+export interface DatabaseDeploymentConfig {
+  hostname: string;
+  port: number;
+  name: string;
+  user: string;
+  password: string;
+  init?: string;
 }
 
 // Prover配置
@@ -389,18 +400,4 @@ export interface CustomConfig extends
   DatabaseConfig,
   ProverConfig {
 
-}
-
-// Erigon 数据库配置助手类型
-export interface ErigonDatabaseHelper {
-  central_env_dbs: DatabaseConfig['central_env_dbs'];
-  prover_db: DatabaseConfig['prover_db'];
-  cdk_erigon_dbs: DatabaseConfig['cdk_erigon_dbs'];
-}
-
-// ZkEVM 数据库配置助手类型
-export interface ZkEvmDatabaseHelper {
-  central_env_dbs: DatabaseConfig['central_env_dbs'];
-  prover_db: DatabaseConfig['prover_db'];
-  zkevm_node_dbs: DatabaseConfig['zkevm_node_dbs'];
 }

@@ -14,7 +14,6 @@ export class DatabaseComposeGenerator extends BaseComposeGenerator {
 
   public async generate(extraConfig: DatabaseExtraConfig): Promise<DockerComposeConfig> {
     await this.addPostgresService(extraConfig);
-    await this.addBlockscoutPostgresService(extraConfig);
     return this.composeConfig;
   }
 
@@ -24,15 +23,16 @@ export class DatabaseComposeGenerator extends BaseComposeGenerator {
 
     // 添加 Postgres 服务配置
     this.addService(serviceName, {
-      image: 'postgres:15-alpine',
+      image: 'postgres:16.2',
       environment: {
         POSTGRES_DB: db.postgres_master_db,
         POSTGRES_USER: db.postgres_master_user,
         POSTGRES_PASSWORD: db.postgres_master_password
       },
-      ports: [`${db.postgres_port}:5432`],
+      ports: [`${this.config.static_ports.database_start_port}:5432`],
       volumes: [
-        `${path.join(extraConfig.dataDir, 'postgres')}:/var/lib/postgresql/data`
+        `${path.join(extraConfig.dataDir, 'postgres')}:/var/lib/postgresql/data`,
+        `${path.join(extraConfig.dataDir, 'init.sql')}:/docker-entrypoint-initdb.d/init.sql`
       ]
     });
 
@@ -40,24 +40,46 @@ export class DatabaseComposeGenerator extends BaseComposeGenerator {
     this.addNetwork();
   }
 
-  private async addBlockscoutPostgresService(extraConfig: DatabaseExtraConfig): Promise<void> {
-    const serviceName = this.getServiceName('blockscout-postgres');
+  // private async addProverPostgresService(extraConfig: DatabaseExtraConfig): Promise<void> {
+  //   const db = this.config.database;
+  //   const serviceName = this.getServiceName('prover-postgres');
 
-    // 添加 Blockscout Postgres 服务配置
-    this.addService(serviceName, {
-      image: 'postgres:15-alpine',
-      environment: {
-        POSTGRES_DB: 'blockscout',
-        POSTGRES_USER: 'postgres',
-        POSTGRES_PASSWORD: 'postgres'
-      },
-      ports: ['5433:5432'],
-      volumes: [
-        `${path.join(extraConfig.dataDir, 'blockscout-postgres')}:/var/lib/postgresql/data`
-      ]
-    });
+  //   // 添加 Prover Postgres 服务配置
+  //   this.addService(serviceName, {
+  //     image: 'postgres:16.2',
+  //     environment: {
+  //       POSTGRES_DB: db.prover_db.name,
+  //       POSTGRES_USER: db.prover_db.user,
+  //       POSTGRES_PASSWORD: db.prover_db.password
+  //     },
+  //     ports: [`${this.config.static_ports.database_start_port+1}:5432`],
+  //     volumes: [
+  //       `${path.join(extraConfig.dataDir, 'prover-postgres')}:/var/lib/postgresql/data`
+  //     ]
+  //   });
 
-    // 添加网络配置
-    this.addNetwork();
-  }
+  //   // 添加网络配置
+  //   this.addNetwork();
+  // }
+
+  // private async addBlockscoutPostgresService(extraConfig: DatabaseExtraConfig): Promise<void> {
+  //   const serviceName = this.getServiceName('blockscout-postgres');
+
+  //   // 添加 Blockscout Postgres 服务配置
+  //   this.addService(serviceName, {
+  //     image: 'postgres:16.2',
+  //     environment: {
+  //       POSTGRES_DB: 'blockscout',
+  //       POSTGRES_USER: 'postgres',
+  //       POSTGRES_PASSWORD: 'postgres'
+  //     },
+  //     ports: [`${this.config.static_ports.database_start_port+2}:5432`],
+  //     volumes: [
+  //       `${path.join(extraConfig.dataDir, 'blockscout-postgres')}:/var/lib/postgresql/data`
+  //     ]
+  //   });
+
+  //   // 添加网络配置
+  //   this.addNetwork();
+  // }
 } 
