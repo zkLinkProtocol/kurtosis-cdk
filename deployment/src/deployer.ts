@@ -122,7 +122,7 @@ export class CDKDeployer {
     const combinedJsonPath = '/opt/zkevm/combined.json';
     
     try {
-      const result = execSync(`docker exec -it ${contractsService} /bin/sh -c "cat ${combinedJsonPath}"`);
+      const result = execSync(`docker exec ${contractsService} /bin/sh -c "cat ${combinedJsonPath}"`);
       return JSON.parse(result.toString());
     } catch (error) {
       this.logger.error('获取合约地址失败:', error);
