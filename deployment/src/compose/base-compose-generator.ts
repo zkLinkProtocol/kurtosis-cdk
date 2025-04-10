@@ -1,6 +1,15 @@
 import { DeploymentConfig } from '../types/config';
 import { Logger } from '../utils/logger';
 
+export interface DockerComposeVolume {
+  type: 'bind' | 'volume' | 'tmpfs';
+  source: string;
+  target: string;
+  bind?: {
+    create_host_path?: boolean;
+  };
+}
+
 export interface DockerComposeService {
   container_name?: string;
   image: string;
@@ -9,7 +18,7 @@ export interface DockerComposeService {
   command?: string | string[];
   environment?: Record<string, string>;
   ports?: string[];
-  volumes?: string[];
+  volumes?: (string | DockerComposeVolume)[];
   depends_on?: string[];
   networks?: string[];
 }

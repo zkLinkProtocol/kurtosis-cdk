@@ -44,14 +44,21 @@ export class AgglayerComposeGenerator extends BaseComposeGenerator {
       image: args.agglayer_image,
       container_name: `agglayer-prover${args.deployment_suffix}`,
       volumes: [
-        `${extraConfig.proverConfigPath}:/etc/zkevm/agglayer-prover-config.toml`
+        {
+          type: 'bind' as const,
+          source: extraConfig.proverConfigPath,
+          target: '/etc/zkevm/agglayer-prover-config.toml',
+          bind: {
+            create_host_path: true
+          }
+        }
       ],
       ports: [
         `${static_ports.agglayer_prover_start_port}:${args.agglayer_prover_port}`,
         `${static_ports.agglayer_prover_start_port+1}:${args.agglayer_prover_metrics_port}`
       ],
-      entrypoint: ["/bin/sh", "-c"],
-      command: "mkdir -p /etc/zkevm && /usr/local/bin/agglayer run --cfg /etc/zkevm/agglayer-prover-config.toml",
+      entrypoint: ["/usr/local/bin/agglayer"],
+      command: ['run', '--cfg', '/etc/zkevm/agglayer-prover-config.toml'],
       environment: envVars
     });
   }
@@ -66,8 +73,22 @@ export class AgglayerComposeGenerator extends BaseComposeGenerator {
       image: args.agglayer_image,
       container_name: `agglayer${args.deployment_suffix}`,
       volumes: [
-        `${extraConfig.agglayerConfigPath}:/etc/zkevm/agglayer-config.toml`,
-        ...(extraConfig.keystorePath ? [`${extraConfig.keystorePath}:/opt/zkevm/agglayer.keystore`] : [])
+        {
+          type: 'bind' as const,
+          source: extraConfig.agglayerConfigPath,
+          target: '/etc/zkevm/agglayer-config.toml',
+          bind: {
+            create_host_path: true
+          }
+        },
+        ...(extraConfig.keystorePath ? [{
+          type: 'bind' as const,
+          source: extraConfig.keystorePath,
+          target: '/opt/zkevm/agglayer.keystore',
+          bind: {
+            create_host_path: true
+          }
+        }] : [])
       ],
       ports: [
         `${static_ports.agglayer_start_port}:${args.agglayer_readrpc_port}`,
@@ -77,8 +98,8 @@ export class AgglayerComposeGenerator extends BaseComposeGenerator {
           ...(args.agglayer_admin_port !== 0 ? [`${static_ports.agglayer_start_port+3}:${args.agglayer_admin_port}`] : [])
         ])
       ],
-      entrypoint: ["/bin/sh", "-c"],
-      command: "mkdir -p /etc/zkevm && /usr/local/bin/agglayer run --cfg /etc/zkevm/agglayer-config.toml",
+      entrypoint: ["/usr/local/bin/agglayer"],
+      command: ['run', '--cfg', '/etc/zkevm/agglayer-config.toml'],
       environment: {
         RUST_BACKTRACE: '1'
       }
