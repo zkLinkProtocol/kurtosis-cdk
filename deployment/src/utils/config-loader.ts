@@ -168,7 +168,7 @@ export class ConfigLoader {
     ) as DatabaseConfig;
 
     // 5. 合并static_ports配置
-    const static_ports = defaultConfig.static_ports;
+    const static_ports = defaultConfig.default_static_ports;
 
     // 6. 合并default_supported_fork_ids配置
     const default_supported_fork_ids = defaultConfig.default_supported_fork_ids;
