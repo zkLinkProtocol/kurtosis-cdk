@@ -15,7 +15,7 @@ else
   # 遍历每个文件并执行docker compose down
   for file in $COMPOSE_FILES; do
     echo "正在处理: $file"
-    docker compose -f "$file" down
+    docker compose -f "$file" down --volumes
   done
   echo "所有docker compose down操作已完成"
 fi
