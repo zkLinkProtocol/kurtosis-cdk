@@ -36,6 +36,8 @@ export class ContractComposeGenerator extends BaseComposeGenerator {
     // 添加合约部署服务配置
     this.addService(serviceName, {
       image: args.zkevm_contracts_image,
+      container_name: serviceName,
+      user: 'root',
       volumes: [
         'zkevm-artifacts:/opt/zkevm',
         ...extraConfig.artifacts.map((artifact: string) => 

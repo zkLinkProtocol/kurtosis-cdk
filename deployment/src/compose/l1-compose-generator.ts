@@ -26,6 +26,7 @@ export class L1ComposeGenerator extends BaseComposeGenerator {
     // 添加 Anvil 服务配置
     this.addService(serviceName, {
       image: args.anvil_image,
+      container_name: serviceName,
       entrypoint: '/bin/sh',
       command: '/app/start-anvil.sh',
       ports: ['8545:8545'],

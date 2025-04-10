@@ -2,7 +2,9 @@ import { DeploymentConfig } from '../types/config';
 import { Logger } from '../utils/logger';
 
 export interface DockerComposeService {
+  container_name?: string;
   image: string;
+  user?: string;
   entrypoint?: string | string[];
   command?: string | string[];
   environment?: Record<string, string>;
