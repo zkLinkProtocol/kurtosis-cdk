@@ -42,8 +42,8 @@ export class ContractComposeGenerator extends BaseComposeGenerator {
           `${path.join(this.pathManager.getBuildDir(), artifact)}:/opt/contract-deploy/${artifact}`
         )
       ],
-      entrypoint: 'bash',
-      command: 'sleep infinity'
+      entrypoint: ['bash', '-c'],
+      command: ['sleep infinity']
     });
   }
 } 

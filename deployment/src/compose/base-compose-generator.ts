@@ -3,8 +3,8 @@ import { Logger } from '../utils/logger';
 
 export interface DockerComposeService {
   image: string;
-  entrypoint?: string;
-  command?: string;
+  entrypoint?: string | string[];
+  command?: string | string[];
   environment?: Record<string, string>;
   ports?: string[];
   volumes?: string[];
