@@ -93,14 +93,18 @@ export class AgglayerDeployer extends BaseDeployer {
     }, 'agglayer-config.toml');
   }
   
-  private agglayer_version(args: any): string {
+  private agglayer_version(args: any): string[] {
+    // such as agglayer_version = "0.3.0-rc.5"
+    // make version = ["0", ".", "3", ".", "0", "-", "rc", ".", "5"]
+    let version = [];
     if (args.agglayer_version) {
-      return args.agglayer_version;
+      version = args.agglayer_version.split(".");
     } else if (args.agglayer_image && typeof args.agglayer_image === 'string' && args.agglayer_image.includes(":")) {
-      return args.agglayer_image.split(":")[1];
+      version = args.agglayer_image.split(":")[1].split("-")[0].split(".");
     } else {
-      return "latest";
+      version = ["latest"];
     }
+    return version;
   }
 
   private async generateAgglayerCompose(): Promise<void> {
