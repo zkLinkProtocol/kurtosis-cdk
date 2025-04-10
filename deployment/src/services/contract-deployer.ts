@@ -133,7 +133,7 @@ export class ContractDeployer extends BaseDeployer {
     this.logger.info('部署智能合约...');
     const contractsServiceName = `contracts${this.contractConfig.deployment_args.deployment_suffix}`;
     
-    execSync(`docker compose exec ${contractsServiceName} /bin/sh -c "chmod +x /opt/contract-deploy/run-contract-setup.sh && /opt/contract-deploy/run-contract-setup.sh"`, 
+    execSync(`docker exec ${contractsServiceName} /bin/sh -c "chmod +x /opt/contract-deploy/run-contract-setup.sh && /opt/contract-deploy/run-contract-setup.sh"`, 
       { stdio: 'inherit' });
   }
 
@@ -141,7 +141,7 @@ export class ContractDeployer extends BaseDeployer {
     this.logger.info('创建密钥库...');
     const contractsServiceName = `contracts${this.contractConfig.deployment_args.deployment_suffix}`;
     
-    execSync(`docker compose exec ${contractsServiceName} /bin/sh -c "chmod +x /opt/contract-deploy/create-keystores.sh && /opt/contract-deploy/create-keystores.sh"`,
+    execSync(`docker exec ${contractsServiceName} /bin/sh -c "chmod +x /opt/contract-deploy/create-keystores.sh && /opt/contract-deploy/create-keystores.sh"`,
       { stdio: 'inherit' });
   }
 
@@ -151,15 +151,15 @@ export class ContractDeployer extends BaseDeployer {
     const chainName = this.contractConfig.deployment_args.chain_name;
 
     // Store chain config
-    execSync(`docker compose cp ${contractsServiceName}:/opt/zkevm/dynamic-${chainName}-conf.json ${this.pathManager.getBuildDir()}/`,
+    execSync(`docker cp ${contractsServiceName}:/opt/zkevm/dynamic-${chainName}-conf.json ${this.pathManager.getBuildDir()}/`,
       { stdio: 'inherit' });
 
     // Store chain allocs
-    execSync(`docker compose cp ${contractsServiceName}:/opt/zkevm/dynamic-${chainName}-allocs.json ${this.pathManager.getBuildDir()}/`,
+    execSync(`docker cp ${contractsServiceName}:/opt/zkevm/dynamic-${chainName}-allocs.json ${this.pathManager.getBuildDir()}/`,
       { stdio: 'inherit' });
 
     // Store first batch config
-    execSync(`docker compose cp ${contractsServiceName}:/opt/zkevm/first-batch-config.json ${this.pathManager.getBuildDir()}/`,
+    execSync(`docker cp ${contractsServiceName}:/opt/zkevm/first-batch-config.json ${this.pathManager.getBuildDir()}/`,
       { stdio: 'inherit' });
   }
 
@@ -167,7 +167,7 @@ export class ContractDeployer extends BaseDeployer {
     this.logger.info('更新 GER...');
     const contractsServiceName = `contracts${this.contractConfig.deployment_args.deployment_suffix}`;
     
-    execSync(`docker compose exec ${contractsServiceName} /bin/sh -c "chmod +x /opt/contract-deploy/update-ger.sh && /opt/contract-deploy/update-ger.sh"`,
+    execSync(`docker exec ${contractsServiceName} /bin/sh -c "chmod +x /opt/contract-deploy/update-ger.sh && /opt/contract-deploy/update-ger.sh"`,
       { stdio: 'inherit' });
   }
 } 
