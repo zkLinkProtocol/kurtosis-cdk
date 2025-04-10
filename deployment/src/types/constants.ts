@@ -131,7 +131,7 @@ export const DEPLOYMENT_ARTIFACTS = [
 // =============================================
 
 // A list of fork identifiers currently supported by Kurtosis CDK
-export const SUPPORTED_FORK_IDS = [9, 11, 12, 13] as const;
+export const SUPPORTED_FORK_IDS = ['9', '11', '12', '13'] as const;
 export type SupportedForkId = typeof SUPPORTED_FORK_IDS[number];
 
 // =============================================

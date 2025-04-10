@@ -358,7 +358,7 @@ export interface DeploymentArgs extends
   ProverConfig {
   l2_rpc_name: string;
   sequencer_name: string;
-  zkevm_rollup_fork_id: number;
+  zkevm_rollup_fork_id: string;
   zkevm_rollup_fork_name: string;
   deploy_agglayer: boolean;
 }

@@ -303,7 +303,7 @@ export class ConfigLoader {
    * @param zkevmContractsImage 合约镜像名称
    * @returns [fork_id, fork_name] 元组
    */
-  public getForkId(zkevmContractsImage: string): [number, string] {
+  public getForkId(zkevmContractsImage: string): [string, string] {
     const result = zkevmContractsImage.split("-patch.")[0].split("-fork.");
     if (result.length !== 2) {
       throw new Error(
@@ -311,13 +311,13 @@ export class ConfigLoader {
       );
     }
 
-    const forkId = parseInt(result[1], 10);
+    const forkId = result[1];
     if (!SUPPORTED_FORK_IDS.includes(forkId as typeof SUPPORTED_FORK_IDS[number])) {
       throw new Error(`The fork id '${forkId}' is not supported by Kurtosis CDK`);
     }
 
     let forkName = "elderberry";
-    if (forkId >= 12) {
+    if (parseInt(forkId, 10) >= 12) {
       forkName = "banana";
     }
     // TODO: Add support for durian once released.
