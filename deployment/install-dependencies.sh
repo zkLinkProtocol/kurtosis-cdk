@@ -172,7 +172,6 @@ install_go() {
         brew install go
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
         # 对于Linux，从官方下载最新版本
-        GO_VERSION=$(curl -s https://go.dev/VERSION?m=text)
         GO_ARCH=$(uname -m)
         if [[ "$GO_ARCH" == "x86_64" ]]; then
             GO_ARCH="amd64"
@@ -181,10 +180,28 @@ install_go() {
         fi
         
         GO_OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        
+        # 尝试获取最新版本
+        GO_VERSION=$(curl -s https://go.dev/VERSION?m=text)
+        if [ -z "$GO_VERSION" ]; then
+            print_warning "无法获取最新Go版本，使用固定版本1.22.1"
+            GO_VERSION="go1.22.1"
+        fi
+        
         GO_URL="https://go.dev/dl/${GO_VERSION}.${GO_OS}-${GO_ARCH}.tar.gz"
         
         print_message "下载Go: $GO_URL"
-        wget -q "$GO_URL" -O /tmp/go.tar.gz
+        # 使用curl代替wget，并添加错误处理
+        if ! curl -L -o /tmp/go.tar.gz "$GO_URL"; then
+            print_error "下载Go失败，尝试使用备用URL..."
+            # 备用URL
+            BACKUP_URL="https://go.dev/dl/go1.22.1.${GO_OS}-${GO_ARCH}.tar.gz"
+            print_message "尝试下载: $BACKUP_URL"
+            if ! curl -L -o /tmp/go.tar.gz "$BACKUP_URL"; then
+                print_error "下载Go失败，请手动安装Go 1.22.1或更高版本"
+                return 1
+            fi
+        fi
         
         # 删除旧版本（如果存在）
         if [ -d "/usr/local/go" ]; then
@@ -192,7 +209,12 @@ install_go() {
         fi
         
         # 解压到/usr/local
-        sudo tar -C /usr/local -xzf /tmp/go.tar.gz
+        if ! sudo tar -C /usr/local -xzf /tmp/go.tar.gz; then
+            print_error "解压Go失败，请手动安装Go 1.22.1或更高版本"
+            rm /tmp/go.tar.gz
+            return 1
+        fi
+        
         rm /tmp/go.tar.gz
     else
         print_error "不支持的操作系统，请手动安装Go"
