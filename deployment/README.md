@@ -4,9 +4,84 @@
 
 ## 环境要求
 
-- Node.js v16+
 - Docker 和 Docker Compose
-- Git
+- jq (https://github.com/jqlang/jq) - 命令行JSON处理工具
+- yq (https://pypi.org/project/yq/) - 命令行YAML处理工具
+- nvm (Node Version Manager)
+- Node.js v20+ (通过nvm安装)
+- npm (随Node.js一起安装)
+- tatt (https://github.com/michenriksen/tatt) - 模板工具
+- Go 1.16+ (tatt的依赖)
+
+## 安装依赖
+
+我们提供了一个自动化脚本来安装所有必需的依赖项。您可以直接运行此脚本：
+
+```bash
+# 进入deployment目录
+cd deployment
+
+# 运行安装脚本
+./install-dependencies.sh
+```
+
+如果您希望手动安装依赖，请参考以下说明：
+
+### 安装Docker和Docker Compose
+
+请参考[Docker官方文档](https://docs.docker.com/get-docker/)安装Docker和Docker Compose。
+
+### 安装jq
+
+macOS:
+```bash
+brew install jq
+```
+
+Linux:
+```bash
+sudo apt-get install jq  # Ubuntu/Debian
+sudo yum install jq      # CentOS/RHEL
+```
+
+### 安装yq
+
+```bash
+pip install yq
+```
+
+### 安装nvm和Node.js
+
+```bash
+# 安装nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+
+# 重新加载shell配置
+source ~/.bashrc  # 或 source ~/.zshrc
+
+# 安装Node.js
+nvm install 20
+nvm use 20
+```
+
+### 安装Go (tatt依赖)
+
+macOS:
+```bash
+brew install go
+```
+
+Linux:
+```bash
+sudo apt-get install golang  # Ubuntu/Debian
+sudo yum install golang      # CentOS/RHEL
+```
+
+### 安装tatt
+
+```bash
+go install github.com/michenriksen/tatt@latest
+```
 
 ## 安装步骤
 
