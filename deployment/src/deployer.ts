@@ -12,12 +12,13 @@ import path from 'path';
 import fs from 'fs';
 import { DeploymentConfig as Config } from './types/config';
 import { BaseDeployer, PathManager } from './services/base-deployer';
-
+import { Service } from './utils/service';
 export class CDKDeployer {
   private readonly config: Config;
   private readonly logger: Logger;
   private readonly contractDeployer: ContractDeployer;
   private readonly databaseDeployer: DatabaseDeployer;
+  private readonly service: Service;
   private contractAddresses: any = {};
   private readonly pathManager: PathManager;
 
@@ -26,6 +27,7 @@ export class CDKDeployer {
     this.logger = logger;
     this.contractDeployer = new ContractDeployer(this.config, this.logger);
     this.databaseDeployer = new DatabaseDeployer(this.config, this.logger);
+    this.service = new Service(this.logger, this.config);
     this.pathManager = new PathManager();
   }
 

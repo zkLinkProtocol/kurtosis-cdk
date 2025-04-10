@@ -161,6 +161,10 @@ export class ContractDeployer extends BaseDeployer {
     // Store first batch config
     execSync(`docker cp ${contractsServiceName}:/opt/zkevm/first-batch-config.json ${this.pathManager.getBuildDir()}/`,
       { stdio: 'inherit' });
+
+    // Store combined.json
+    execSync(`docker cp ${contractsServiceName}:/opt/zkevm/combined.json ${this.pathManager.getBuildDir()}/`,
+      { stdio: 'inherit' });
   }
 
   private async updateGER(): Promise<void> {
