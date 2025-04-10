@@ -1,0 +1,35 @@
+# CDK Erigon 配置文件
+[node]
+chain_id = {{zkevm_rollup_chain_id}}
+rollup_id = {{zkevm_rollup_id}}
+l1_rpc_url = "{{l1_rpc_url}}"
+l1_ws_url = "{{l1_ws_url}}"
+l1_explorer_url = "{{l1_explorer_url}}"
+l1_chain_id = {{l1_chain_id}}
+
+[sequencer]
+address = "{{zkevm_l2_sequencer_address}}"
+keystore_path = "/app/sequencer.keystore"
+keystore_password = "{{zkevm_l2_keystore_password}}"
+
+[executor]
+host = "zkevm-stateless-executor"
+port = 50071
+
+[hash_db]
+host = "zkevm-stateless-executor"
+port = 50061
+
+[rpc]
+http_port = 8123
+ws_port = 8133
+
+[data_streamer]
+port = 6900
+
+[pprof]
+port = 6060
+
+[metrics]
+enabled = true
+port = 9090 

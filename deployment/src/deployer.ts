@@ -61,6 +61,14 @@ export class CDKDeployer {
         this.logger.info('跳过部署数据库...');
       }
 
+      // 部署 Agglayer
+      if (this.config.deployment_stages.deploy_agglayer) {
+        this.logger.info('部署 Agglayer...');
+        await this.deployAggLayer();
+      } else {
+        this.logger.info('跳过部署 Agglayer...');
+      }
+
       // 部署中心环境
       if (this.config.deployment_stages.deploy_cdk_central_environment) {
         this.logger.info('部署中心环境...');
@@ -76,14 +84,6 @@ export class CDKDeployer {
         }
       } else {
         this.logger.info('跳过部署中心环境...');  
-      }
-
-      // 部署 Agglayer
-      if (this.config.deployment_stages.deploy_agglayer) {
-        this.logger.info('部署 Agglayer...');
-        await this.deployAggLayer();
-      } else {
-        this.logger.info('跳过部署 Agglayer...');
       }
 
       // 部署额外服务
@@ -159,7 +159,7 @@ export class CDKDeployer {
     const agglayerDeployer = new AgglayerDeployer(
       this.config,
       this.logger,
-      this.contractAddresses
+      this.service
     );
     await agglayerDeployer.deploy();
   }
