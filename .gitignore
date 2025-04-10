@@ -38,5 +38,5 @@ deployment/prover/
 deployment/logs
 deployment/dist
 deployment/coverage
-
+deployment/test.yml
 .cursor/

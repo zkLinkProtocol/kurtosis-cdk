@@ -66,62 +66,63 @@ export enum CDK_ERIGON_TYPE {
 // =============================================
 
 // Contract deployment artifacts
+// file all in templates folder
 export const DEPLOYMENT_ARTIFACTS = [
     {
         name: 'deploy_parameters.json',
-        file: './templates/contract-deploy/deploy_parameters.json',
+        file: 'contract-deploy/deploy_parameters.json',
     },
     {
         name: 'create_rollup_parameters.json',
-        file: './templates/contract-deploy/create_rollup_parameters.json',
+        file: 'contract-deploy/create_rollup_parameters.json',
     },
     {
         name: 'run-contract-setup.sh',
-        file: './templates/contract-deploy/run-contract-setup.sh',
+        file: 'contract-deploy/run-contract-setup.sh',
     },
     {
         name: 'create-keystores.sh',
-        file: './templates/contract-deploy/create-keystores.sh',
+        file: 'contract-deploy/create-keystores.sh',
     },
     {
         name: 'update-ger.sh',
-        file: './templates/contract-deploy/update-ger.sh',
+        file: 'contract-deploy/update-ger.sh',
     },
     {
         name: 'run-l2-contract-setup.sh',
-        file: './templates/contract-deploy/run-l2-contract-setup.sh',
+        file: 'contract-deploy/run-l2-contract-setup.sh',
     },
     {
         name: 'run-sovereign-setup.sh',
-        file: './templates/sovereign-rollup/run-sovereign-setup.sh',
+        file: 'sovereign-rollup/run-sovereign-setup.sh',
     },
     {
         name: 'run-sovereign-setup-predeployed.sh',
-        file: './templates/sovereign-rollup/run-sovereign-setup-predeployed.sh',
+        file: 'sovereign-rollup/run-sovereign-setup-predeployed.sh',
     },
     {
         name: 'create_new_rollup.json',
-        file: './templates/sovereign-rollup/create_new_rollup.json',
+        file: 'sovereign-rollup/create_new_rollup.json',
     },
     {
         name: 'add_rollup_type.json',
-        file: './templates/sovereign-rollup/add_rollup_type.json',
+        file: 'sovereign-rollup/add_rollup_type.json',
     },
     {
         name: 'sovereign-genesis.json',
-        file: './templates/sovereign-rollup/genesis.json',
+        file: 'sovereign-rollup/genesis.json',
     },
     {
         name: 'create-genesis-sovereign-params.json',
-        file: './templates/sovereign-rollup/create-genesis-sovereign-params.json',
+        file: 'sovereign-rollup/create-genesis-sovereign-params.json',
     },
     {
         name: 'create-predeployed-sovereign-genesis.sh',
-        file: './templates/sovereign-rollup/create-predeployed-sovereign-genesis.sh',
+        file: 'sovereign-rollup/create-predeployed-sovereign-genesis.sh',
     },
     {
         name: 'op-original-genesis.json',
-        file: './templates/sovereign-rollup/op-original-genesis.json',
+        file: 'sovereign-rollup/op-original-genesis.json',
     },
 ] as const;
 

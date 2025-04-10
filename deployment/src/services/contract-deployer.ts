@@ -4,7 +4,7 @@ import { execSync } from 'child_process';
 import path from 'path';
 import { BaseDeployer } from './base-deployer';
 import { readFileSync, writeFileSync } from 'fs';
-import { DEPLOYMENT_ARTIFACTS } from '../types/constants'
+import { DEPLOYMENT_ARTIFACTS, DATA_AVAILABILITY_MODES, CONSENSUS_CONTRACTS } from '../types/constants'
 
 // 合约配置接口
 interface ArtifactConfig {
@@ -31,14 +31,17 @@ export class ContractDeployer extends BaseDeployer {
   public async deploy(): Promise<void> {
     try {
       this.logger.info('开始部署合约...');
-      // 0. 生成合约配置
-      await this.generateContractConfig();
-      // 1. 生成部署脚本
+      // 1. 生成配置文件配置
+      await this.generatArtifactConfig();
+      // 2. 生成部署脚本
       await this.generateDeployScript();
+      // 3. create helper service to deploy contracts
+      await this.createHelperService();
+      // 4. deploy contracts
+      // 5. create keystores
+      // 6. store CDK configs
+      // 7. force update GER
 
-      // 2. 启动部署服务
-      // await this.startServices('contracts');
-      // await this.waitForHealthy('contracts');
 
       this.logger.info('合约部署完成');
     } catch (error) {
@@ -47,7 +50,7 @@ export class ContractDeployer extends BaseDeployer {
     }
   }
 
-  private async generateContractConfig(): Promise<void> {
+  private async generatArtifactConfig(): Promise<void> {
     this.logger.info('生成合约配置...');
     let artifacts = [];
     for (const artifact of DEPLOYMENT_ARTIFACTS) {
@@ -60,19 +63,19 @@ export class ContractDeployer extends BaseDeployer {
     if (this.contractConfig.deployment_args.use_previously_deployed_contracts) {
       artifacts.push({
         name: 'genesis.json',
-        file: './templates/contract-deploy/genesis.json'
+        file: 'contract-deploy/genesis.json'
       })
       artifacts.push({
         name: 'combined.json',
-        file: './templates/contract-deploy/combined.json'
+        file: 'contract-deploy/combined.json'
       })
       artifacts.push({
         name: 'dynamic-' + this.contractConfig.deployment_args.chain_name + '-conf.json',
-        file: './templates/contract-deploy/dynamic-' + this.contractConfig.deployment_args.chain_name + '-conf.json'
+        file: 'contract-deploy/dynamic-' + this.contractConfig.deployment_args.chain_name + '-conf.json'
       })
       artifacts.push({
         name: 'dynamic-' + this.contractConfig.deployment_args.chain_name + '-allocs.json',
-        file: './templates/contract-deploy/dynamic-' + this.contractConfig.deployment_args.chain_name + '-allocs.json'
+        file: 'contract-deploy/dynamic-' + this.contractConfig.deployment_args.chain_name + '-allocs.json'
       })
     }
     this.contractConfig.artifacts = artifacts;
@@ -82,35 +85,23 @@ export class ContractDeployer extends BaseDeployer {
     this.logger.info('生成部署脚本...');
 
     // 1. 渲染模板
-    const contracts = this.contractConfig.artifacts || [];
-    // const renderedContent = this.renderTemplate('contract-deploy/deploy.ts', {
-    //   // contracts: contracts.map(this.formatContractConfig)
-    // });
+    const artifacts = this.contractConfig.artifacts || [];
+    
+    const is_cdk_validium = this.contractConfig.deployment_args.consensus_contract_type === DATA_AVAILABILITY_MODES.cdk_validium;
+    const zkevm_rollup_consensus = CONSENSUS_CONTRACTS[this.contractConfig.deployment_args.consensus_contract_type];
+    const deploy_optimism_rollup = this.contractConfig.deployment_stages.deploy_optimism_rollup
 
-    // 2. 写入文件
-    // const outputPath = this.pathManager.getBuildPath('deploy.ts');
-    // writeFileSync(outputPath, renderedContent);
-
-    // 3. 编译脚本
-    // execSync(`tsc ${outputPath} --esModuleInterop --target es2020 --module commonjs`, {
-    //   stdio: 'inherit'
-    // });
+    for (const artifact of artifacts) {
+      await this.configGenerator.renderTemplate(artifact.file,
+        {...this.contractConfig.deployment_args,
+          is_cdk_validium,
+          zkevm_rollup_consensus,
+          deploy_optimism_rollup},
+        artifact.name);
+    }
   }
 
-  // private formatContractConfig(config: ArtifactConfig): string {
-  //   const args = config.args.map(arg => `'${arg}'`).join(', ');
-  //   const value = config.value ? `, { value: '${config.value}' }` : '';
-  //   const libraries = config.libraries ? 
-  //     `, { libraries: ${JSON.stringify(config.libraries)} }` : 
-  //     '';
-
-  //   return `await deploy('${config.name}', [${args}]${value}${libraries});`;
-  // }
-
-  private async compileContracts(contractName: string): Promise<void> {
-    this.logger.info('编译合约...');
-
-    const command = `cd ${this.pathManager.getBuildPath(contractName)} && yarn && yarn compile`;
-    execSync(command, { stdio: 'inherit' });
+  private async createHelperService(): Promise<void> {
+    this.logger.info('创建helper service...');
   }
 } 

@@ -39,13 +39,8 @@ export class ConfigGenerator {
       const outputDir = path.dirname(outputAbsolutePath);
       await fs.promises.mkdir(outputDir, { recursive: true });
 
-      // 使用tatt渲染模板
-      const result = execSync(`${process.env.HOME}/go/bin/tatt --data ${tempDataPath} ${templateAbsolutePath}`, {
-        encoding: 'utf8'
-      });
-
-      // 写入输出文件
-      await fs.promises.writeFile(outputAbsolutePath, result, 'utf8');
+      // 使用tatt渲染模板并直接写入文件
+      execSync(`${process.env.HOME}/go/bin/tatt --data ${tempDataPath} ${templateAbsolutePath} > ${outputAbsolutePath}`);
     } finally {
       // 清理临时数据文件
       await fs.promises.unlink(tempDataPath);
