@@ -169,6 +169,34 @@ install_go() {
             print_error "不支持的操作系统，请手动安装Go"
         fi
     fi
+    
+    # 设置Go环境变量
+    print_message "设置Go环境变量..."
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # 检查.zshrc中是否已存在Go环境变量
+        if ! grep -q "export PATH=\$PATH:/usr/local/go/bin" ~/.zshrc; then
+            echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.zshrc
+        fi
+        if ! grep -q "export PATH=\$PATH:\$(go env GOPATH)/bin" ~/.zshrc; then
+            echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.zshrc
+        fi
+        # 立即应用更改
+        export PATH=$PATH:/usr/local/go/bin
+        export PATH=$PATH:$(go env GOPATH)/bin
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        # 检查.bashrc中是否已存在Go环境变量
+        if ! grep -q "export PATH=\$PATH:/usr/local/go/bin" ~/.bashrc; then
+            echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+        fi
+        if ! grep -q "export PATH=\$PATH:\$(go env GOPATH)/bin" ~/.bashrc; then
+            echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc
+        fi
+        # 立即应用更改
+        export PATH=$PATH:/usr/local/go/bin
+        export PATH=$PATH:$(go env GOPATH)/bin
+    fi
+    
+    print_message "Go环境变量已设置"
 }
 
 # 安装tatt
@@ -179,14 +207,7 @@ install_tatt() {
     else
         print_message "安装tatt..."
         go install github.com/michenriksen/tatt@latest
-        # 确保GOPATH/bin在PATH中
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.zshrc
-            source ~/.zshrc
-        elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-            echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc
-            source ~/.bashrc
-        fi
+        # 环境变量已在install_go函数中设置，无需重复设置
     fi
 }
 
