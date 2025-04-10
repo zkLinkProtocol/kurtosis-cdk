@@ -24,6 +24,7 @@ export class ConfigGenerator {
    * @param outputRelativePath 输出文件路径
    */
   public async renderTemplate(templateRelativePath: string, data: any, outputRelativePath: string): Promise<void> {
+    console.log(`从配置文件模板 ${templateRelativePath} 生成 ${outputRelativePath}`);
     // 确保构建目录存在
     await fs.promises.mkdir(this.pathManager.getBuildDir(), { recursive: true });
 
@@ -41,6 +42,9 @@ export class ConfigGenerator {
 
       // 使用tatt渲染模板并直接写入文件
       execSync(`${process.env.HOME}/go/bin/tatt --data ${tempDataPath} ${templateAbsolutePath} > ${outputAbsolutePath}`);
+    } catch (error) {
+      console.error(`生成配置文件 ${outputRelativePath} 失败: ${error}`);
+      throw error;
     } finally {
       // 清理临时数据文件
       await fs.promises.unlink(tempDataPath);
