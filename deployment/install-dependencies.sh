@@ -152,25 +152,59 @@ install_go() {
     print_message "检查Go安装..."
     if command_exists go; then
         print_message "Go已安装: $(go version)"
-    else
-        print_message "安装Go..."
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            brew install go
-        elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-            if command_exists apt-get; then
-                sudo apt-get update
-                sudo apt-get install -y golang
-            elif command_exists yum; then
-                sudo yum install -y golang
-            else
-                print_error "无法确定包管理器，请手动安装Go"
-            fi
+        # 检查Go版本是否满足要求
+        GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
+        if [[ "$(printf '%s\n' "1.22.1" "$GO_VERSION" | sort -V | head -n1)" != "1.22.1" ]]; then
+            print_warning "当前Go版本($GO_VERSION)低于1.22.1，tatt需要Go 1.22.1或更高版本"
+            print_message "将安装最新版本的Go..."
+            # 继续安装最新版本
         else
-            print_error "不支持的操作系统，请手动安装Go"
+            print_message "Go版本满足要求，无需更新"
+            # 设置环境变量
+            setup_go_env
+            return
         fi
     fi
     
-    # 设置Go环境变量
+    print_message "安装最新版本的Go..."
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # 对于macOS，使用brew安装最新版本
+        brew install go
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        # 对于Linux，从官方下载最新版本
+        GO_VERSION=$(curl -s https://go.dev/VERSION?m=text)
+        GO_ARCH=$(uname -m)
+        if [[ "$GO_ARCH" == "x86_64" ]]; then
+            GO_ARCH="amd64"
+        elif [[ "$GO_ARCH" == "aarch64" ]]; then
+            GO_ARCH="arm64"
+        fi
+        
+        GO_OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        GO_URL="https://go.dev/dl/${GO_VERSION}.${GO_OS}-${GO_ARCH}.tar.gz"
+        
+        print_message "下载Go: $GO_URL"
+        wget -q "$GO_URL" -O /tmp/go.tar.gz
+        
+        # 删除旧版本（如果存在）
+        if [ -d "/usr/local/go" ]; then
+            sudo rm -rf /usr/local/go
+        fi
+        
+        # 解压到/usr/local
+        sudo tar -C /usr/local -xzf /tmp/go.tar.gz
+        rm /tmp/go.tar.gz
+    else
+        print_error "不支持的操作系统，请手动安装Go"
+        return 1
+    fi
+    
+    # 设置环境变量
+    setup_go_env
+}
+
+# 设置Go环境变量
+setup_go_env() {
     print_message "设置Go环境变量..."
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # 检查.zshrc中是否已存在Go环境变量
@@ -197,6 +231,7 @@ install_go() {
     fi
     
     print_message "Go环境变量已设置"
+    print_message "Go已安装: $(go version)"
 }
 
 # 安装tatt
@@ -206,6 +241,15 @@ install_tatt() {
         print_message "tatt已安装"
     else
         print_message "安装tatt..."
+        # 确保Go版本满足要求
+        GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
+        if [[ "$(printf '%s\n' "1.22.1" "$GO_VERSION" | sort -V | head -n1)" != "1.22.1" ]]; then
+            print_error "Go版本($GO_VERSION)低于1.22.1，tatt需要Go 1.22.1或更高版本"
+            print_message "请先更新Go版本后再安装tatt"
+            return 1
+        fi
+        
+        # 安装tatt
         go install github.com/michenriksen/tatt@latest
         # 环境变量已在install_go函数中设置，无需重复设置
     fi

@@ -11,7 +11,7 @@
 - Node.js v20+ (通过nvm安装)
 - npm (随Node.js一起安装)
 - tatt (https://github.com/michenriksen/tatt) - 模板工具
-- Go 1.16+ (tatt的依赖)
+- Go 1.22.1+ (tatt的依赖，需要较新版本)
 
 ## 安装依赖
 
@@ -66,6 +66,8 @@ nvm use 20
 
 ### 安装Go (tatt依赖)
 
+tatt需要Go 1.22.1或更高版本。请从[Go官方网站](https://go.dev/dl/)下载并安装最新版本。
+
 macOS:
 ```bash
 brew install go
@@ -73,8 +75,20 @@ brew install go
 
 Linux:
 ```bash
-sudo apt-get install golang  # Ubuntu/Debian
-sudo yum install golang      # CentOS/RHEL
+# 下载最新版本
+wget https://go.dev/dl/$(curl -s https://go.dev/VERSION?m=text).linux-amd64.tar.gz
+
+# 删除旧版本（如果存在）
+sudo rm -rf /usr/local/go
+
+# 解压到/usr/local
+sudo tar -C /usr/local -xzf go*.tar.gz
+rm go*.tar.gz
+
+# 设置环境变量
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc
+source ~/.bashrc
 ```
 
 ### 安装tatt
