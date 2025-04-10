@@ -66,7 +66,7 @@ export class Service {
 
     // 获取合约设置地址
     public getContractSetupAddresses(): ContractSetupAddresses {
-        let serviceName = "contracts";
+        let serviceName = `contracts${this.config.deployment_args.deployment_suffix}`;
     
         const combinedJsonResult = execSync(`docker exec ${serviceName} /bin/sh -c "cat /opt/zkevm/combined.json"`).toString();
         const combinedJson = JSON.parse(combinedJsonResult);
@@ -78,8 +78,6 @@ export class Service {
         }
         }
         
-        serviceName += this.config.deployment_args.deployment_suffix;
-
         this.logger.info(`Getting contract setup addresses from ${serviceName} service`);
         
         let contractSetupAddresses: ContractSetupAddresses = {
