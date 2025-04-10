@@ -21,11 +21,13 @@ interface DatabaseConfig {
 export class DatabaseDeployer extends BaseDeployer {
   private readonly dbConfigs: DatabaseDeploymentConfig[];
   private readonly initScript: string;
+  private serviceName: string;
 
   constructor(config: DeploymentConfig, logger: Logger) {
     super(config, logger);
     this.dbConfigs = getDbConfigs(this.config);
-    this.initScript = this.readInitSql(`init${this.config.deployment_args.deployment_suffix}.sql`);
+    this.initScript = `init${this.config.deployment_args.deployment_suffix}.sql`;
+    this.serviceName = `postgres${this.config.deployment_args.deployment_suffix}`;
   }
 
   public async deploy(): Promise<void> {
@@ -64,7 +66,8 @@ export class DatabaseDeployer extends BaseDeployer {
     );
 
     const extraConfig: DatabaseExtraConfig = {
-      dataDir: path.join(this.pathManager.getDataDir())
+      dataDir: path.join(this.pathManager.getDataDir()),
+      initScript: path.join(this.pathManager.getBuildDir(), this.initScript)
     };
 
     const composeConfig = await composeGenerator.generate(extraConfig);
@@ -84,13 +87,7 @@ export class DatabaseDeployer extends BaseDeployer {
       try {
         // 检查主数据库
         execSync(
-          `PGPASSWORD=${this.config.database.postgres_master_password} psql -h localhost -U ${this.config.database.postgres_master_user} -d ${this.config.database.postgres_master_db} -c "\\q"`,
-          { stdio: 'pipe' }
-        );
-
-        // 检查 Blockscout 数据库
-        execSync(
-          'PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d blockscout -c "\\q"',
+          `PGPASSWORD=${this.config.database.postgres_master_password} psql -h ${this.config.database.postgres_host} -p ${this.config.static_ports.database_start_port} -U ${this.config.database.postgres_master_user} -d ${this.config.database.postgres_master_db} -c "\\q"`,
           { stdio: 'pipe' }
         );
 
@@ -131,7 +128,7 @@ export class DatabaseDeployer extends BaseDeployer {
       await client.connect();
       
       // 执行初始化脚本
-      const initScript = this.readInitSql(`init${this.config.deployment_args.deployment_suffix}.sql`);
+      const initScript = this.readInitSql(this.initScript);
       await client.query(initScript);
       
       // 对于每个数据库,如果有特定的初始化脚本,也需要执行
@@ -155,7 +152,13 @@ export class DatabaseDeployer extends BaseDeployer {
     this.logger.info('准备数据库初始化脚本...');
 
     const configGenerator = new ConfigGenerator(this.config);
-    await configGenerator.renderTemplate('databases/init.sql', this.dbConfigs, `init${this.config.deployment_args.deployment_suffix}.sql`);
+    await configGenerator.renderTemplate('databases/init.sql',
+      {
+        dbs: this.dbConfigs,
+        master_db: this.config.database.postgres_master_db,
+        master_user: this.config.database.postgres_master_user
+      },
+      `init${this.config.deployment_args.deployment_suffix}.sql`);
   }
 
   private readInitSql(filename: string, specialInitScript?: boolean): string {

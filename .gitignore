@@ -31,6 +31,7 @@ anvil_state.json
 
 # 部署配置
 deployment/build/
+deployment/data/
 deployment/deploy-cdk-to-sepolia.yml
 deployment/deployment.log
 deployment/prover/

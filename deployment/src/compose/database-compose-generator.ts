@@ -5,6 +5,7 @@ import path from 'path';
 
 export interface DatabaseExtraConfig {
   dataDir: string;
+  initScript: string;
 }
 
 export class DatabaseComposeGenerator extends BaseComposeGenerator {
@@ -24,6 +25,7 @@ export class DatabaseComposeGenerator extends BaseComposeGenerator {
     // 添加 Postgres 服务配置
     this.addService(serviceName, {
       image: 'postgres:16.2',
+      container_name: `postgres${this.config.deployment_args.deployment_suffix}`,
       environment: {
         POSTGRES_DB: db.postgres_master_db,
         POSTGRES_USER: db.postgres_master_user,
@@ -32,7 +34,7 @@ export class DatabaseComposeGenerator extends BaseComposeGenerator {
       ports: [`${this.config.static_ports.database_start_port}:5432`],
       volumes: [
         `${path.join(extraConfig.dataDir, 'postgres')}:/var/lib/postgresql/data`,
-        `${path.join(extraConfig.dataDir, 'init.sql')}:/docker-entrypoint-initdb.d/init.sql`
+        `${extraConfig.initScript}:/docker-entrypoint-initdb.d/init.sql`
       ]
     });
 

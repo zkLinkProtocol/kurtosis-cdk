@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs, { readFileSync } from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 import { 
@@ -13,6 +13,7 @@ import {
 } from '../types/config';
 import { PortConfig, PortSpec, sortPortConfigByValues } from '../types/ports';
 import { LOG_LEVEL, SEQUENCER_TYPE, SUPPORTED_FORK_IDS } from '../types/constants';
+import { PathManager } from '../services/base-deployer';
 
 export class ConfigLoader {
   private readonly config: DeploymentConfig;
@@ -356,6 +357,7 @@ export class ConfigLoader {
 
 export function getDbConfigs(config: DeploymentConfig): DatabaseDeploymentConfig[] {
   const { database, deployment_args, deployment_stages, static_ports } = config;
+  const pathManager = new PathManager();
   let configs: DatabaseDeploymentConfig[] = [];
   // 1. central_env_db
   // 1.1 aggregator_db
@@ -405,7 +407,7 @@ export function getDbConfigs(config: DeploymentConfig): DatabaseDeploymentConfig
     name: database.prover_db.name,
     user: database.prover_db.user,
     password: database.prover_db.password,
-    init: database.prover_db.init
+    init: readFileSync(path.join(pathManager.getTemplatesDir(), 'databases', 'prover-db-init.sql'), 'utf8')
   });
   if (deployment_args.sequencer_type === SEQUENCER_TYPE.CDK_ERIGON) { 
     // 3. cdk_erigon_dbs
@@ -424,7 +426,7 @@ export function getDbConfigs(config: DeploymentConfig): DatabaseDeploymentConfig
       name: database.zkevm_node_dbs.event_db.name,
       user: database.zkevm_node_dbs.event_db.user,
       password: database.zkevm_node_dbs.event_db.password,
-      init: database.zkevm_node_dbs.event_db.init
+      init: readFileSync(path.join(pathManager.getTemplatesDir(), 'databases', 'event-db-init.sql'), 'utf8')
     });
     configs.push({
       hostname: database.postgres_host,
