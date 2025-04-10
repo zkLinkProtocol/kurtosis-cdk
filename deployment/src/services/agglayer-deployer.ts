@@ -80,7 +80,7 @@ export class AgglayerDeployer extends BaseDeployer {
       agglayer_version: this.agglayer_version(this.config.deployment_args),
       agglayer_grpc_port: this.config.deployment_args.agglayer_grpc_port,
       agglayer_readrpc_port: this.config.deployment_args.agglayer_readrpc_port,
-      agglayer_admin_port: this.config.deployment_args.agglayer_admin_port,
+      agglayer_admin_port: String(this.config.deployment_args.agglayer_admin_port),
       agglayer_prover_entrypoint: agglayer_prover_url,
       prometheus_port: this.config.deployment_args.agglayer_metrics_port,
       l2_rpc_name: this.config.deployment_args.l2_rpc_name,
