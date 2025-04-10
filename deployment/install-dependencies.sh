@@ -272,7 +272,7 @@ install_tatt() {
         fi
         
         # 安装tatt
-        go install github.com/michenriksen/tatt@latest
+        go install github.com/michenriksen/tatt/cmd/tatt@latest
         # 环境变量已在install_go函数中设置，无需重复设置
     fi
 }
