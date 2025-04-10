@@ -23,6 +23,12 @@ export interface DockerComposeConfig {
       name?: string;
     };
   };
+  volumes?: {
+    [key: string]: {
+      external?: boolean;
+      name?: string;
+    };
+  };
 }
 
 export interface ComposeNetworkConfig {

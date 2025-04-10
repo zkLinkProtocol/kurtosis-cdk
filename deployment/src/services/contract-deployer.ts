@@ -5,6 +5,9 @@ import path from 'path';
 import { BaseDeployer } from './base-deployer';
 import { readFileSync, writeFileSync } from 'fs';
 import { DEPLOYMENT_ARTIFACTS, DATA_AVAILABILITY_MODES, CONSENSUS_CONTRACTS } from '../types/constants'
+import yaml from 'js-yaml';
+import { ContractComposeGenerator, ContractExtraConfig } from '../compose/contract-compose-generator';
+import { ComposeNetworkConfig } from '../compose/base-compose-generator';
 
 // 合约配置接口
 interface ArtifactConfig {
@@ -38,10 +41,13 @@ export class ContractDeployer extends BaseDeployer {
       // 3. create helper service to deploy contracts
       await this.createHelperService();
       // 4. deploy contracts
+      await this.deployContracts();
       // 5. create keystores
+      await this.createKeystores();
       // 6. store CDK configs
+      await this.storeCDKConfigs();
       // 7. force update GER
-
+      await this.updateGER();
 
       this.logger.info('合约部署完成');
     } catch (error) {
@@ -102,6 +108,66 @@ export class ContractDeployer extends BaseDeployer {
   }
 
   private async createHelperService(): Promise<void> {
-    this.logger.info('创建helper service...');
+    this.logger.info('创建合约部署服务...');
+    
+    const network: ComposeNetworkConfig = {
+      name: this.contractConfig.deployment_args.chain_name
+    };
+
+    const extraConfig: ContractExtraConfig = {
+      artifacts: this.contractConfig.artifacts?.map(a => a.name) || []
+    };
+
+    const composeGenerator = new ContractComposeGenerator(this.contractConfig, this.logger, network);
+    const composeConfig = await composeGenerator.generate(extraConfig);
+
+    // 写入配置文件
+    const composePath = path.join(this.pathManager.getBuildDir(), 'contract-docker-compose.yml');
+    writeFileSync(composePath, yaml.dump(composeConfig));
+
+    // 启动服务
+    execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
+  }
+
+  private async deployContracts(): Promise<void> {
+    this.logger.info('部署智能合约...');
+    const contractsServiceName = `contracts${this.contractConfig.deployment_args.deployment_suffix}`;
+    
+    execSync(`docker compose exec ${contractsServiceName} /bin/sh -c "chmod +x /opt/contract-deploy/run-contract-setup.sh && /opt/contract-deploy/run-contract-setup.sh"`, 
+      { stdio: 'inherit' });
+  }
+
+  private async createKeystores(): Promise<void> {
+    this.logger.info('创建密钥库...');
+    const contractsServiceName = `contracts${this.contractConfig.deployment_args.deployment_suffix}`;
+    
+    execSync(`docker compose exec ${contractsServiceName} /bin/sh -c "chmod +x /opt/contract-deploy/create-keystores.sh && /opt/contract-deploy/create-keystores.sh"`,
+      { stdio: 'inherit' });
+  }
+
+  private async storeCDKConfigs(): Promise<void> {
+    this.logger.info('存储 CDK 配置...');
+    const contractsServiceName = `contracts${this.contractConfig.deployment_args.deployment_suffix}`;
+    const chainName = this.contractConfig.deployment_args.chain_name;
+
+    // Store chain config
+    execSync(`docker compose cp ${contractsServiceName}:/opt/zkevm/dynamic-${chainName}-conf.json ${this.pathManager.getBuildDir()}/`,
+      { stdio: 'inherit' });
+
+    // Store chain allocs
+    execSync(`docker compose cp ${contractsServiceName}:/opt/zkevm/dynamic-${chainName}-allocs.json ${this.pathManager.getBuildDir()}/`,
+      { stdio: 'inherit' });
+
+    // Store first batch config
+    execSync(`docker compose cp ${contractsServiceName}:/opt/zkevm/first-batch-config.json ${this.pathManager.getBuildDir()}/`,
+      { stdio: 'inherit' });
+  }
+
+  private async updateGER(): Promise<void> {
+    this.logger.info('更新 GER...');
+    const contractsServiceName = `contracts${this.contractConfig.deployment_args.deployment_suffix}`;
+    
+    execSync(`docker compose exec ${contractsServiceName} /bin/sh -c "chmod +x /opt/contract-deploy/update-ger.sh && /opt/contract-deploy/update-ger.sh"`,
+      { stdio: 'inherit' });
   }
 } 
