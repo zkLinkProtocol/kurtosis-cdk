@@ -1,0 +1,43 @@
+{
+  "name": "kurtosis-cdk-deployment",
+  "version": "1.0.0",
+  "description": "Kurtosis CDK deployment scripts",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf ./dist",
+    "lint": "eslint ./src/**/*.ts",
+    "start": "ts-node src/index.ts",
+    "deploy": "ts-node src/index.ts",
+    "deploy:test": "ts-node src/index.ts test.yml",
+    "deploy:sepolia": "ts-node src/index.ts deploy-cdk-to-sepolia.yml",
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@iarna/toml": "^2.2.5",
+    "@types/dockerode": "^3.3.37",
+    "@types/iarna__toml": "^2.0.5",
+    "@types/js-yaml": "^4.0.9",
+    "@types/lodash": "^4.17.16",
+    "@types/node": "^22.14.0",
+    "@types/pg": "^8.11.11",
+    "axios": "^1.8.4",
+    "dockerode": "^4.0.5",
+    "ethers": "^6.13.5",
+    "js-yaml": "^4.1.0",
+    "lodash": "^4.17.21",
+    "pg": "^8.14.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "winston": "^3.17.0",
+    "yaml": "^2.7.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "@types/jest": "^29.5.12"
+  }
+}
