@@ -24,6 +24,7 @@ export class AgglayerComposeGenerator extends BaseComposeGenerator {
 
   private async addAgglayerProverService(extraConfig: AgglayerExtraConfig): Promise<void> {
     const args = this.config.deployment_args;
+    const static_ports = this.config.static_ports;
     const serviceName = this.getServiceName('agglayer-prover');
 
     // 准备环境变量
@@ -46,8 +47,8 @@ export class AgglayerComposeGenerator extends BaseComposeGenerator {
         `${extraConfig.proverConfigPath}:/etc/zkevm/agglayer-prover-config.toml`
       ],
       ports: [
-        `${args.agglayer_prover_port}:${args.agglayer_prover_port}`,
-        `${args.agglayer_prover_metrics_port}:${args.agglayer_prover_metrics_port}`
+        `${static_ports.agglayer_prover_start_port}:${args.agglayer_prover_port}`,
+        `${static_ports.agglayer_prover_start_port+1}:${args.agglayer_prover_metrics_port}`
       ],
       entrypoint: ["/usr/local/bin/agglayer"],
       command: ['run', '--cfg', '/etc/zkevm/agglayer-prover-config.toml'],
@@ -57,6 +58,7 @@ export class AgglayerComposeGenerator extends BaseComposeGenerator {
 
   private async addAgglayerService(extraConfig: AgglayerExtraConfig): Promise<void> {
     const args = this.config.deployment_args;
+    const static_ports = this.config.static_ports;
     const serviceName = this.getServiceName('agglayer');
 
     // 添加 Agglayer 服务配置
@@ -64,17 +66,18 @@ export class AgglayerComposeGenerator extends BaseComposeGenerator {
       image: args.agglayer_image,
       container_name: `agglayer${args.deployment_suffix}`,
       volumes: [
-        `${extraConfig.agglayerConfigPath}:/etc/zkevm`,
+        `${extraConfig.agglayerConfigPath}:/etc/zkevm/agglayer-config.toml`,
         ...(extraConfig.keystorePath ? [`${extraConfig.keystorePath}:/opt/zkevm/agglayer.keystore`] : [])
       ],
       ports: [
-        `${args.agglayer_readrpc_port}:${args.agglayer_readrpc_port}`,
-        `${args.agglayer_metrics_port}:${args.agglayer_metrics_port}`,
+        `${static_ports.agglayer_start_port}:${args.agglayer_readrpc_port}`,
+        `${static_ports.agglayer_start_port+1}:${args.agglayer_metrics_port}`,
         ...(this.agglayer_version(args).startsWith('0.2.') ? [] : [
-          `${args.agglayer_grpc_port}:${args.agglayer_grpc_port}`,
-          ...(args.agglayer_admin_port !== 0 ? [`${args.agglayer_admin_port}:${args.agglayer_admin_port}`] : [])
+          `${static_ports.agglayer_start_port+2}:${args.agglayer_grpc_port}`,
+          ...(args.agglayer_admin_port !== 0 ? [`${static_ports.agglayer_start_port+3}:${args.agglayer_admin_port}`] : [])
         ])
       ],
+      entrypoint: ["/usr/local/bin/agglayer"],
       command: ['run', '--cfg', '/etc/zkevm/agglayer-config.toml'],
       environment: {
         RUST_BACKTRACE: '1'
