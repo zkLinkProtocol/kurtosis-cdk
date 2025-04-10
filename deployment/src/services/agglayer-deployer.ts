@@ -30,7 +30,6 @@ export class AgglayerDeployer extends BaseDeployer {
     this.logger.info('开始部署 Agglayer...');
 
     // 1. 部署 Agglayer Prover
-    this.logger.info('部署 Agglayer Prover...');
     // 1.1 准备 Agglayer Prover 配置
     await this.prepareAgglayerProverConfig();
     // 1.2 准备 Agglayer 配置
@@ -51,7 +50,7 @@ export class AgglayerDeployer extends BaseDeployer {
       is_network_prover_enabled = true;
     }
 
-    this.configGenerator.renderTemplate('bridge-infra/agglayer-prover-config.toml', {
+    await this.configGenerator.renderTemplate('bridge-infra/agglayer-prover-config.toml', {
       deployment_suffix: this.config.deployment_args.deployment_suffix,
       global_log_level: this.config.deployment_args.global_log_level,
       zkevm_rollup_fork_id: this.config.deployment_args.zkevm_rollup_fork_id,
@@ -67,7 +66,7 @@ export class AgglayerDeployer extends BaseDeployer {
     // 获取agglayer_prover的ip地址和端口
     const agglayer_prover_url = `http://localhost:${this.config.deployment_args.agglayer_prover_port}`;
     const db_configs = getDbConfigs(this.config);
-    this.configGenerator.renderTemplate('bridge-infra/agglayer-config.toml', {
+    await this.configGenerator.renderTemplate('bridge-infra/agglayer-config.toml', {
       deployment_suffix: this.config.deployment_args.deployment_suffix,
       global_log_level: this.config.deployment_args.global_log_level,
       l1_chain_id: this.config.deployment_args.l1_chain_id,

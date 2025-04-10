@@ -38,12 +38,9 @@ export class ConfigGenerator {
     try {
       // 确保输出目录存在
       const outputDir = path.dirname(outputAbsolutePath);
-      console.log(`确保输出目录 ${outputDir} 存在`);
       await fs.promises.mkdir(outputDir, { recursive: true });
-      console.log(`创建输出目录 ${outputDir} 成功`);
 
       // 使用tatt渲染模板并直接写入文件
-      console.log(`使用tatt渲染模板 ${templateAbsolutePath} 并写入 ${outputAbsolutePath}`);
       execSync(`${process.env.HOME}/go/bin/tatt --data ${tempDataPath} ${templateAbsolutePath} > ${outputAbsolutePath}`);
     } catch (error) {
       console.error(`生成配置文件 ${outputRelativePath} 失败: ${error}`);
