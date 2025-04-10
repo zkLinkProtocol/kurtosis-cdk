@@ -50,8 +50,8 @@ export class AgglayerComposeGenerator extends BaseComposeGenerator {
         `${static_ports.agglayer_prover_start_port}:${args.agglayer_prover_port}`,
         `${static_ports.agglayer_prover_start_port+1}:${args.agglayer_prover_metrics_port}`
       ],
-      entrypoint: ["/usr/local/bin/agglayer"],
-      command: ['run', '--cfg', '/etc/zkevm/agglayer-prover-config.toml'],
+      entrypoint: ["/bin/sh", "-c"],
+      command: "mkdir -p /etc/zkevm && /usr/local/bin/agglayer run --cfg /etc/zkevm/agglayer-prover-config.toml",
       environment: envVars
     });
   }
@@ -77,8 +77,8 @@ export class AgglayerComposeGenerator extends BaseComposeGenerator {
           ...(args.agglayer_admin_port !== 0 ? [`${static_ports.agglayer_start_port+3}:${args.agglayer_admin_port}`] : [])
         ])
       ],
-      entrypoint: ["/usr/local/bin/agglayer"],
-      command: ['run', '--cfg', '/etc/zkevm/agglayer-config.toml'],
+      entrypoint: ["/bin/sh", "-c"],
+      command: "mkdir -p /etc/zkevm && /usr/local/bin/agglayer run --cfg /etc/zkevm/agglayer-config.toml",
       environment: {
         RUST_BACKTRACE: '1'
       }
