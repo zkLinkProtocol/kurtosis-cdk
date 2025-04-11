@@ -58,7 +58,7 @@ export class AgglayerComposeGenerator extends BaseComposeGenerator {
         `${static_ports.agglayer_prover_start_port+1}:${args.agglayer_prover_metrics_port}`
       ],
       entrypoint: ["/usr/local/bin/agglayer"],
-      command: ['run', '--cfg', '/etc/zkevm/agglayer-prover-config.toml'],
+      command: ['prover', '--cfg', '/etc/zkevm/agglayer-prover-config.toml'],
       environment: envVars
     });
   }
@@ -84,7 +84,7 @@ export class AgglayerComposeGenerator extends BaseComposeGenerator {
         ...(extraConfig.keystorePath ? [{
           type: 'bind' as const,
           source: extraConfig.keystorePath,
-          target: '/opt/zkevm/agglayer.keystore',
+          target: '/etc/zkevm/agglayer.keystore',
           bind: {
             create_host_path: true
           }

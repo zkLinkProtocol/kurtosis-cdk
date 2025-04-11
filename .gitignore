@@ -40,3 +40,4 @@ deployment/dist
 deployment/coverage
 deployment/test.yml
 .cursor/
+deployment/artifacts/
