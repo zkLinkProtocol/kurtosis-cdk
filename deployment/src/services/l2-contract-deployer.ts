@@ -2,6 +2,7 @@ import { Logger } from '../utils/logger';
 import { DeploymentConfig } from '../types/config';
 import { BaseDeployer } from './base-deployer';
 import { execSync } from 'child_process';
+import { Service } from '../utils/service';
 
 export class L2ContractDeployer extends BaseDeployer {
   constructor(config: DeploymentConfig, logger: Logger) {
@@ -13,7 +14,8 @@ export class L2ContractDeployer extends BaseDeployer {
       this.logger.info('开始部署 L2 合约...');
 
       // 获取 L2 RPC URL
-      const l2RpcUrl = this.getL2RpcUrl();
+      const service = new Service(this.logger, this.config);
+      const l2RpcUrl = service.getL2RpcUrl();
 
       // 执行 L2 合约部署
       const contractServiceName = `contracts${this.config.deployment_args.deployment_suffix}`;
@@ -28,15 +30,6 @@ export class L2ContractDeployer extends BaseDeployer {
     } catch (error) {
       this.logger.error('L2 合约部署失败:', error);
       throw error;
-    }
-  }
-
-  private getL2RpcUrl(): string {
-    // 根据 sequencer 类型获取 L2 RPC URL
-    if (this.config.deployment_args.sequencer_type === 'erigon') {
-      return `http://cdk-erigon${this.config.deployment_args.deployment_suffix}:8545`;
-    } else {
-      return `http://zkevm-node-rpc${this.config.deployment_args.deployment_suffix}:8545`;
     }
   }
 } 

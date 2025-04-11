@@ -104,17 +104,10 @@ export class Service {
   
   // 返回L2 RPC服务的HTTP和WS URL
   public getL2RpcUrl(): { http: string; ws: string } {
-    const l2RpcService = this.config.deployment_args.l2_rpc_name + this.config.deployment_args.deployment_suffix;
-    // get l2 rpc service from docker
-    const l2RpcServiceId = execSync(`docker ps --filter "name=${l2RpcService}" --format "{{.ID}}"`).toString();
-    const l2RpcServiceInfo = execSync(`docker inspect ${l2RpcServiceId}`).toString();
-    const l2RpcServiceInfoJson = JSON.parse(l2RpcServiceInfo);
-    const l2RpcServiceIpAddress = l2RpcServiceInfoJson[0].NetworkSettings.IPAddress;
-    const l2RpcServicePorts = l2RpcServiceInfoJson[0].HostConfig.PortBindings;
-    return {
-      http: `http://${l2RpcServiceIpAddress}:${l2RpcServicePorts.rpc.HostPort}`,
-      ws: `ws://${l2RpcServiceIpAddress}:${l2RpcServicePorts['ws-rpc'].HostPort}`,
-    };
+    const http = `http://cdk-erigon-rpc${this.config.deployment_args.deployment_suffix}:${this.config.static_ports.cdk_erigon_rpc_start_port}`;
+    const ws = `ws://cdk-erigon-rpc${this.config.deployment_args.deployment_suffix}:${this.config.static_ports.cdk_erigon_rpc_start_port+1}`;
+    
+    return { http, ws };
   }
   
   // 获取主权合约设置地址
