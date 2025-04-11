@@ -9,11 +9,8 @@ export interface ContractExtraConfig {
 }
 
 export class ContractComposeGenerator extends BaseComposeGenerator {
-  private readonly pathManager: PathManager;
-
   constructor(config: DeploymentConfig, logger: Logger, network: ComposeNetworkConfig) {
     super(config, logger, network);
-    this.pathManager = new PathManager();
   }
 
   public async generate(extraConfig: ContractExtraConfig): Promise<DockerComposeConfig> {

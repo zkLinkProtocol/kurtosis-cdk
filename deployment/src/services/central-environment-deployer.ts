@@ -5,6 +5,13 @@ import { readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { BaseDeployer } from './base-deployer';
 import { existsSync, mkdirSync } from 'fs';
+import { chain } from 'lodash';
+import { CentralEnvironmentComposeGenerator } from '../compose/central-environment-compose-generator';
+import { Service, ContractSetupAddresses } from '../utils/service';
+import { getDbConfigs } from '../utils/config-loader';
+import yaml from 'js-yaml';
+import { Pool } from 'pg';
+import { DatabaseComposeGenerator } from '../compose/database-compose-generator';
 
 // Keystore 文件接口
 interface KeystoreArtifacts {
@@ -15,61 +22,280 @@ interface KeystoreArtifacts {
   };
 }
 
-// 合约地址接口
-interface ContractSetupAddresses {
-  l1_bridge_address: string;
-  l1_bridge_proxy_address: string;
-  l1_rollup_address: string;
-  l1_rollup_proxy_address: string;
-  l1_ger_address: string;
-  l1_ger_proxy_address: string;
-  l1_sovereign_bridge_address: string;
-  l1_sovereign_bridge_proxy_address: string;
-}
-
 // 配置文件接口
 interface ConfigFile {
   [key: string]: string | number | boolean | ConfigFile;
 }
 
 export class CentralEnvironmentDeployer extends BaseDeployer {
+  private readonly service: Service;
+  private readonly contractSetupAddresses: ContractSetupAddresses;
+
   constructor(
     config: DeploymentConfig,
     logger: Logger,
-    private readonly contractAddresses: ContractSetupAddresses
+    service: Service
   ) {
     super(config, logger);
+    this.service = service;
+    this.contractSetupAddresses = this.service.getContractSetupAddresses();
   }
 
   public async deploy(): Promise<void> {
     try {
       this.logger.info('开始部署中心环境...');
 
-      // 1. 部署 Prover (如果需要)
+      // 1. 部署 cdk erigon sequencer 服务
+      await this.deploySequencer();
+
+      // 2. 部署 zkevm-pool-manager 服务
+      await this.deployZkevmPoolManager();
+
+      // 3. 部署 cdk erigon rpc 服务
+      await this.deployRpc();
+
+      // 4. 部署 prover 服务
       if (this.shouldDeployProver()) {
         await this.deployProver();
-      }
-
-      // 2. 获取 Genesis 文件
-      const genesisArtifact = await this.getGenesisArtifact();
-
-      // 3. 根据 sequencer 类型部署相应组件
-      if (this.config.deployment_args.sequencer_type === 'zkevm') {
-        await this.deployZkEVMComponents(genesisArtifact);
       } else {
-        await this.deployCDKErigonComponents(genesisArtifact);
+        this.logger.info('不部署 prover 服务');
       }
 
-      // 4. 如果是 validium 模式,部署 DAC
+      // 5. 部署 DAC 服务
       if (this.isCDKValidium()) {
         await this.deployDAC();
+      } else {
+        this.logger.info('不部署 DAC 服务');
       }
+
+      // 6. 部署 cdk erigon node
+      await this.deployCDKErigonNode();
 
       this.logger.info('中心环境部署完成');
     } catch (error) {
       this.logger.error('中心环境部署失败:', error);
       throw error;
     }
+  }
+
+  private async deploySequencer(): Promise<void> {
+    this.logger.info('部署 sequencer...');
+
+    // 如果启用了严格模式,准备无状态执行器配置
+    if (this.config.deployment_args.erigon_strict_mode) {
+      await this.prepareStatelessExecutorConfig();
+    }
+
+    // 生成 sequencer 服务配置
+    // config.yml
+    const configName = 'config.yaml';
+    await this.configGenerator.renderTemplate('cdk-erigon/config.yml', {
+      ...this.config.deployment_args,
+      ...this.contractSetupAddresses,
+      "zkevm_data_stream_port": this.config.deployment_args.zkevm_data_streamer_port,
+      "is_sequencer": true,
+      "consensus_contract_type": this.config.deployment_args.consensus_contract_type,
+      "l1_sync_start_block": this.config.deployment_args.anvil_state_file ? 1 : 0,
+      "prometheus_port": this.config.deployment_args.prometheus_port,
+    }, configName);
+
+    // 生成 chainspec.json
+    const chainspecName = `dynamic-${this.config.deployment_args.chain_name}-chainspec.json`;
+    await this.configGenerator.renderTemplate('cdk-erigon/chainspec.json', {
+      chain_id: this.config.deployment_args.zkevm_rollup_chain_id,
+      enable_normalcy: this.config.deployment_args.enable_normalcy,
+      chain_name: this.config.deployment_args.chain_name,
+    }, chainspecName);
+
+    const chainConfigName = 'cdk-erigon-chain-config.json';
+    const chainAllocsName = 'cdk-erigon-chain-allocs.json';
+    const chainFirstBatchName = 'cdk-erigon-chain-first-batch.json';
+    // 创建 datadir
+    const datadirPath = this.pathManager.getDataPath('datadir');
+    if (!existsSync(datadirPath)) {
+      mkdirSync(datadirPath, { recursive: true });
+    }
+
+    // 生成 compose 文件
+    const composeGenerator = new CentralEnvironmentComposeGenerator(this.config, this.logger, { name: 'zklink-network' });
+    const composeConfig = await composeGenerator.generate({
+      type: 'cdk-erigon-sequencer',
+      config: {
+        sequencerConfig: {
+          path: this.pathManager.getBuildPath(configName),
+          name: configName,
+        },
+        sequencerChainspec: {
+          path: this.pathManager.getBuildPath(chainspecName),
+          name: chainspecName,
+        },
+        sequencerChainConfig: {
+          path: this.pathManager.getBuildPath(chainConfigName),
+          name: chainConfigName,
+        },
+        sequencerChainAllocs: {
+          path: this.pathManager.getBuildPath(chainAllocsName),
+          name: chainAllocsName,
+        },
+        sequencerChainFirstBatch: {
+          path: this.pathManager.getBuildPath(chainFirstBatchName),
+          name: chainFirstBatchName,
+        },
+        sequencerDatadir: {
+          path: datadirPath,
+          name: 'cdk-erigon-datadir',
+        },
+        proverConfig: {
+          proverType: 'stateless-executor',
+          proverConfigPath: this.pathManager.getBuildPath('stateless-executor-config.json'),
+        }
+      }
+    });
+
+    // 写入 compose 文件
+    const composePath = path.join(this.pathManager.getBuildDir(), 'cdk-sequencer-docker-compose.yml');
+    writeFileSync(composePath, yaml.dump(composeConfig));
+
+    // 启动服务
+    this.logger.info('启动 sequencer 服务...');
+    execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
+
+    // 等待服务启动
+    await this.waitForServiceStartup('cdk-erigon-sequencer', this.config.static_ports.cdk_erigon_sequencer_start_port);
+  }
+
+  private async waitForServiceStartup(serviceName: string, port: number): Promise<void> {
+    this.logger.info(`等待 ${serviceName} 服务启动...`);
+
+    const maxRetries = 60; // 最多等待 5 分钟
+    let retries = 0;
+
+    while (retries < maxRetries) {
+      try {
+        execSync(`curl -s http://localhost:${port} > /dev/null`, { stdio: 'pipe' });
+        this.logger.info(`${serviceName} 服务已成功启动！`);
+        return;
+      } catch (error) {
+        // 忽略错误，继续重试
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 5000)); // 等待 5 秒
+      retries++;
+      this.logger.info(`${serviceName} 服务正在启动中... (${retries}/${maxRetries})`);
+    }
+
+    throw new Error(`${serviceName} 服务启动失败`);
+  }
+
+  private async deployZkevmPoolManager(): Promise<void> {
+    this.logger.info('部署 zkevm-pool-manager...');
+
+    // 生成 zkevm-pool-manager 服务配置
+    const configName = 'zkevm-pool-manager-config.toml';
+    await this.configGenerator.renderTemplate('zkevm-pool-manager/pool-manager-config.toml', {
+      ...this.config.deployment_args,
+      pool_manager_db: {
+        hostname: this.config.database?.postgres_host,
+        port: this.config.database?.postgres_port,
+        name: this.config.database?.cdk_erigon_dbs.pool_manager_db.name,
+        user: this.config.database?.cdk_erigon_dbs.pool_manager_db.user,
+        password: this.config.database?.cdk_erigon_dbs.pool_manager_db.password
+      }
+    }, configName);
+    
+    // 生成 compose 文件
+    const composeGenerator = new CentralEnvironmentComposeGenerator(this.config, this.logger, { name: 'zklink-network' });
+    const composeConfig = await composeGenerator.generate({
+      type: 'zkevm-pool-manager',
+      config: {
+        zkevmPoolManagerConfig: {
+          path: this.pathManager.getBuildPath(configName),
+          name: configName,
+        }
+      }
+    });
+
+    // 写入 compose 文件
+    const composePath = path.join(this.pathManager.getBuildDir(), 'zkevm-pool-manager-docker-compose.yml');
+    writeFileSync(composePath, yaml.dump(composeConfig));
+
+    // 启动服务
+    this.logger.info('启动 zkevm-pool-manager 服务...');
+    execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
+    
+    // 等待服务启动
+    await this.waitForServiceStartup('zkevm-pool-manager', this.config.static_ports.zkevm_pool_manager_start_port);
+  }
+
+  private async deployRpc(): Promise<void> {
+    this.logger.info('部署 CDK Erigon node...');
+
+    // 生成 cdk Erigon node 服务配置
+    const zkevm_sequence_url = `http://cdk-erigon-sequencer${this.config.deployment_args.deployment_suffix}:${this.config.static_ports.cdk_erigon_sequencer_start_port}`
+    const zkevm_datastreamer_url = `http://cdk-erigon-sequencer${this.config.deployment_args.deployment_suffix}:${this.config.static_ports.cdk_erigon_sequencer_start_port + 2}`
+    const pool_manager_url = `http://zkevm-pool-manager${this.config.deployment_args.deployment_suffix}:${this.config.static_ports.zkevm_pool_manager_start_port}`
+
+    await this.configGenerator.renderTemplate('cdk-erigon/config.yml', {
+      ...this.config.deployment_args,
+      ...this.contractSetupAddresses,
+      "zkevm_sequencer_url": zkevm_sequence_url,
+      "zkevm_datastreamer_url": zkevm_datastreamer_url,
+      "is_sequencer": false,
+      "pool_manager_url": pool_manager_url,
+      "consensus_contract_type": this.config.deployment_args.consensus_contract_type,
+      "l1_sync_start_block": 0,
+      "prometheus_port": this.config.deployment_args.prometheus_port,
+    }, 'config.yaml');
+
+    const chainspecName = `dynamic-${this.config.deployment_args.chain_name}-chainspec.json`;
+    await this.configGenerator.renderTemplate('cdk-erigon/chainspec.json', {
+      "chain_id": this.config.deployment_args.zkevm_rollup_chain_id,
+      "enable_normalcy": this.config.deployment_args.enable_normalcy,
+      "chain_name": this.config.deployment_args.chain_name,
+    }, chainspecName);
+
+    const chainConfigName = 'cdk-erigon-chain-config.json';
+    const chainAllocsName = 'cdk-erigon-chain-allocs.json';
+    const chainFirstBatchName = 'cdk-erigon-chain-first-batch.json';
+    
+    // 生成 compose 文件
+    const composeGenerator = new CentralEnvironmentComposeGenerator(this.config, this.logger, { name: 'zklink-network' });
+    const composeConfig = await composeGenerator.generate({
+      type: 'cdk-erigon-rpc',
+      config: {
+        rpcConfig: {
+          path: this.pathManager.getBuildPath('config.yaml'),
+          name: 'config.yaml',
+        },
+        rpcChainspec: {
+          path: this.pathManager.getBuildPath(chainspecName),
+          name: chainspecName,
+        },
+        rpcChainConfig: {
+          path: this.pathManager.getBuildPath(chainConfigName),
+          name: chainConfigName,
+        },
+        rpcChainAllocs: {
+          path: this.pathManager.getBuildPath(chainAllocsName),
+          name: chainAllocsName,
+        },
+        rpcChainFirstBatch: {
+          path: this.pathManager.getBuildPath(chainFirstBatchName),
+          name: chainFirstBatchName,
+        },
+      }
+    });
+
+    // 写入 compose 文件
+    const composePath = path.join(this.pathManager.getBuildDir(), 'cdk-erigon-node-docker-compose.yml');
+    writeFileSync(composePath, yaml.dump(composeConfig));
+
+    // 启动服务
+    this.logger.info('启动 CDK Erigon node 服务...');
+    execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
+
+    // 等待服务启动
+    await this.waitForServiceStartup('cdk-erigon-node', this.config.static_ports.cdk_erigon_rpc_start_port);
   }
 
   private shouldDeployProver(): boolean {
@@ -87,8 +313,9 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
   private async deployProver(): Promise<void> {
     this.logger.info('部署 Prover...');
 
-    // 准备 Prover 配置
+    // 生成 prover 服务配置
     await this.configGenerator.renderTemplate('trusted-node/prover-config.json', {
+      ...this.config.deployment_args,
       prover_db: {
         host: this.config.database?.postgres_host,
         port: this.config.database?.postgres_port,
@@ -98,10 +325,26 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
       },
     }, 'prover-config.json');
 
+    // 生成 compose 文件
+    const composeGenerator = new CentralEnvironmentComposeGenerator(this.config, this.logger, { name: 'zklink-network' });
+    const composeConfig = await composeGenerator.generate({
+      type: 'prover',
+      config: {
+        proverType: 'prover',
+        proverConfigPath: this.pathManager.getBuildPath('prover-config.json'),
+      }
+    });
 
-    // 启动 Prover 服务
-    // await this.startServices('core');
-    // await this.waitForHealthy('core');
+    // 写入 compose 文件
+    const composePath = path.join(this.pathManager.getBuildDir(), 'prover-docker-compose.yml');
+    writeFileSync(composePath, yaml.dump(composeConfig));
+
+    // 启动服务
+    this.logger.info('启动 Prover 服务...');
+    execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
+
+    // 等待服务启动
+    await this.waitForServiceStartup('prover', this.config.static_ports.zkevm_prover_start_port);
   }
 
   private async getGenesisArtifact(): Promise<string> {
@@ -116,77 +359,76 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     return this.pathManager.getBuildPath('genesis.json');
   }
 
-  private async deployZkEVMComponents(genesisArtifact: string): Promise<void> {
-    this.logger.info('部署 zkEVM 组件...');
-
-    // 1. 创建节点配置
-    await this.configGenerator.renderTemplate('trusted-node/node-config.toml', {
-      ...this.config,
-      is_cdk_validium: this.isCDKValidium()
-    }, 'node-config.toml');
-
-    // 2. 启动节点服务
-    // await this.startServices('node');
-    // await this.waitForHealthy('node');
-  }
-
-  private async deployCDKErigonComponents(genesisArtifact: string): Promise<void> {
+  private async deployCDKErigonNode(): Promise<void> {
     this.logger.info('部署 CDK Erigon 组件...');
 
-    // 1. 如果启用了严格模式,部署无状态执行器
-    if (this.config.deployment_args.erigon_strict_mode) {
-      await this.deployStatelessExecutor();
-    }
-
-    // 2. 创建 CDK Erigon 配置
-    await this.configGenerator.renderTemplate('cdk-erigon/config.toml', {
-      ...this.config,
-      ...this.contractAddresses
-    }, 'sequencer-config.toml');
-
-    // 3. 创建 chainspec 文件
-    await this.configGenerator.renderTemplate('cdk-erigon/chainspec.json', {
-      ...this.config,
-      ...this.contractAddresses
-    }, 'chainspec.json');
-
-    // 4. 创建 keystore 文件
-    await this.configGenerator.renderTemplate('cdk-erigon/sequencer.keystore', {
-      ...this.config,
-      ...this.contractAddresses
-    }, 'sequencer.keystore');
-
-    // 5. 启动服务
-    // await this.startServices('core');
-    // await this.waitForHealthy('core');
-  }
-
-  private async deployStatelessExecutor(): Promise<void> {
-    this.logger.info('部署无状态执行器...');
-
-    // 准备执行器配置
-    await this.configGenerator.renderTemplate('trusted-node/prover-config.json', {
-      ...this.config,
-      stateless_executor: true,
-      // 确保数据库配置正确传递
-      prover_db: {
+    // 生成 cdk Erigon node 服务配置
+    const configName = 'cdk-node-config.toml';
+    await this.configGenerator.renderTemplate('trusted-node/cdk-node-config.toml', {
+      ...this.config.deployment_args,
+      ...this.contractSetupAddresses,
+      aggregator_db: {
         hostname: this.config.database?.postgres_host,
         port: this.config.database?.postgres_port,
-        name: this.config.database?.prover_db?.name,
-        user: this.config.database?.prover_db?.user,
-        password: this.config.database?.prover_db?.password
+        name: this.config.database?.central_env_dbs.aggregator_db.name,
+        user: this.config.database?.central_env_dbs.aggregator_db.user,
+        password: this.config.database?.central_env_dbs.aggregator_db.password
       },
-      // 添加部署后缀
-      deployment_suffix: this.config.deployment_args.deployment_suffix || '',
-      // 确保端口配置正确传递
-      zkevm_executor_port: this.config.deployment_args.zkevm_executor_port || 50071,
-      zkevm_hash_db_port: this.config.deployment_args.zkevm_hash_db_port || 50061,
-      zkevm_aggregator_port: this.config.deployment_args.zkevm_aggregator_port || 50081,
-    }, 'executor-config.json');
+      is_cdk_validium: this.isCDKValidium(),
+    }, configName);
 
-    // 启动执行器服务
-    // await this.startServices('core');
-    // await this.waitForHealthy('core');
+    // 生成 compose 文件
+    const composeGenerator = new CentralEnvironmentComposeGenerator(this.config, this.logger, { name: 'zklink-network' });
+    const composeConfig = await composeGenerator.generate({
+      type: 'cdk-node',
+      config: {
+        cdkNodeConfig: {
+          path: this.pathManager.getBuildPath(configName),
+          name: configName,
+        },
+        cdkNodeGenesis: {
+          path: this.pathManager.getBuildPath('genesis.json'),
+          name: 'genesis.json',
+        },
+        cdkNodeAggregatorKeystore: {
+          path: this.pathManager.getBuildPath('aggregator.keystore'),
+          name: 'aggregator.keystore',
+        },
+        cdkNodeSequencerKeystore: {
+          path: this.pathManager.getBuildPath('sequencer.keystore'),
+          name: 'sequencer.keystore',
+        },
+        cdkNodeClaimsponsorKeystore: {
+          path: this.pathManager.getBuildPath('claimsponsor.keystore'),
+          name: 'claimsponsor.keystore',
+        },
+        cdkNodeDatadir: {
+          path: this.pathManager.getDataPath('cdk-node-datadir'),
+          name: '/data',
+        }
+      }
+    });
+
+    // 写入 compose 文件
+    const composePath = path.join(this.pathManager.getBuildDir(), 'cdk-node-docker-compose.yml');
+    writeFileSync(composePath, yaml.dump(composeConfig));
+
+    // 启动服务
+    this.logger.info('启动 CDK Erigon 组件...');
+    execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
+
+    // 等待服务启动
+    await this.waitForServiceStartup('cdk-node', this.config.static_ports.cdk_node_start_port);
+  }
+
+  private async prepareStatelessExecutorConfig(): Promise<void> {
+    this.logger.info('准备stateless-executor配置...');
+
+    // 准备stateless-executor-config.json
+    await this.configGenerator.renderTemplate('trusted-node/prover-config.json', {
+      ...this.config.deployment_args,
+      stateless_executor: true,
+    }, 'stateless-executor-config.json');
   }
 
   private async deployDAC(): Promise<void> {
@@ -194,75 +436,46 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
 
     // 创建 DAC 配置
     await this.configGenerator.renderTemplate('trusted-node/dac-config.toml', {
-      ...this.config,
-      ...this.contractAddresses
+      ...this.config.deployment_args,
+      ...this.contractSetupAddresses,
+      dac_db: {
+        host: this.config.database?.postgres_host,
+        port: this.config.database?.postgres_port,
+        name: this.config.database?.central_env_dbs.dac_db.name,
+        user: this.config.database?.central_env_dbs.dac_db.user,
+        password: this.config.database?.central_env_dbs.dac_db.password
+      }
     }, 'dac-config.toml');
 
-    // 启动 DAC 服务
-    // await this.startServices('node');
-    // await this.waitForHealthy('node');
+    // 生成 compose 文件
+    const composeGenerator = new CentralEnvironmentComposeGenerator(this.config, this.logger, { name: 'zklink-network' });
+    const composeConfig = await composeGenerator.generate({
+      type: 'dac',
+      config: {
+        dacConfig: {
+          path: this.pathManager.getBuildPath('dac-config.toml'),
+          name: 'dac-config.toml',
+        },
+        dacKeystore: {
+          path: this.pathManager.getBuildPath('dac.keystore'),
+          name: 'dac.keystore',
+        }
+      }
+    });
+
+    // 写入 compose 文件
+    const composePath = path.join(this.pathManager.getBuildDir(), 'dac-docker-compose.yml');
+    writeFileSync(composePath, yaml.dump(composeConfig));
+
+    // 启动服务
+    this.logger.info('启动 DAC 服务...');
+    execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
+
+    // 等待服务启动
+    await this.waitForServiceStartup('dac', this.config.static_ports.zkevm_dac_start_port);
   }
 
   private isCDKValidium(): boolean {
     return this.config.deployment_args.consensus_contract_type === 'cdk-validium';
   }
-
-  // private async prepareProverConfig(proverType: string): Promise<void> {
-  //   const config = this.renderTemplate(`${proverType}-prover-config.toml`, {
-  //     PROVER_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_proofsigner_private_key,
-  //     PROVER_OPERATOR: this.config.deployment_args.zkevm_l2_proofsigner_address,
-  //     PROVER_OPERATOR_COMMIT_DELAY: this.config.deployment_args.zkevm_executor_port,
-  //     PROVER_OPERATOR_PROOF_DELAY: this.config.deployment_args.zkevm_hash_db_port,
-  //     PROVER_OPERATOR_COMMIT_SLOT_SIZE: 1,
-  //     PROVER_OPERATOR_PROOF_SLOT_SIZE: 1,
-  //     PROVER_OPERATOR_COMMIT_PROOF_RATIO: 1,
-  //   });
-  //   this.writeConfig(`${proverType}-prover-config.toml`, config);
-  // }
-
-  // private async prepareSequencerConfig(): Promise<void> {
-  //   const config = this.renderTemplate('sequencer-config.toml', {
-  //     SEQUENCER_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_sequencer_private_key,
-  //     SEQUENCER_OPERATOR: this.config.deployment_args.zkevm_l2_sequencer_address,
-  //     SEQUENCER_OPERATOR_COMMIT_DELAY: this.config.deployment_args.zkevm_executor_port,
-  //     SEQUENCER_OPERATOR_PROOF_DELAY: this.config.deployment_args.zkevm_hash_db_port,
-  //     SEQUENCER_OPERATOR_COMMIT_SLOT_SIZE: 1,
-  //     SEQUENCER_OPERATOR_PROOF_SLOT_SIZE: 1,
-  //     SEQUENCER_OPERATOR_COMMIT_PROOF_RATIO: 1,
-  //   });
-  //   this.writeConfig('sequencer-config.toml', config);
-  // }
-
-  // private async prepareValidatorConfig(): Promise<void> {
-  //   const config = this.renderTemplate('validator-config.toml', {
-  //     VALIDATOR_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_admin_private_key,
-  //     VALIDATOR_OPERATOR: this.config.deployment_args.zkevm_l2_admin_address,
-  //   });
-  //   this.writeConfig('validator-config.toml', config);
-  // }
-
-  // private async prepareWitnessConfig(): Promise<void> {
-  //   const config = this.renderTemplate('witness-config.toml', {
-  //     WITNESS_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_loadtest_private_key,
-  //     WITNESS_OPERATOR: this.config.deployment_args.zkevm_l2_loadtest_address,
-  //   });
-  //   this.writeConfig('witness-config.toml', config);
-  // }
-
-  // private async prepareL1Config(): Promise<void> {
-  //   const config = this.renderTemplate('l1-config.toml', {
-  //     L1_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_l1testing_private_key,
-  //     L1_OPERATOR: this.config.deployment_args.zkevm_l2_l1testing_address,
-  //   });
-  //   this.writeConfig('l1-config.toml', config);
-  // }
-
-  // private async prepareL2Config(): Promise<void> {
-  //   const template = this.readTemplate('l2-config.toml');
-  //   const config = this.renderTemplate(template, {
-  //     L2_PRIVATE_KEY: this.config.deployment_args.zkevm_l2_claimtxmanager_private_key,
-  //     L2_OPERATOR: this.config.deployment_args.zkevm_l2_claimtxmanager_address,
-  //   });
-  //   this.writeConfig('l2-config.toml', config);
-  // }
 } 

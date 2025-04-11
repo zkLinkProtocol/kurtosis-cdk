@@ -41,6 +41,11 @@ export class PathManager {
     return this.dataDir;
   }
 
+  // 获取数据目录路径
+  public getDataPath(subdir: string): string {
+    return path.join(this.dataDir, subdir);
+  }
+
   // 获取模板目录路径
   public getTemplatesDir(): string {
     return this.templatesDir;

@@ -1,5 +1,6 @@
 import { DeploymentConfig } from '../types/config';
 import { Logger } from '../utils/logger';
+import { PathManager } from '../services/base-deployer';
 
 export interface DockerComposeVolume {
   type: 'bind' | 'volume' | 'tmpfs';
@@ -52,11 +53,13 @@ export abstract class BaseComposeGenerator {
   protected readonly logger: Logger;
   protected readonly network: ComposeNetworkConfig;
   protected composeConfig: DockerComposeConfig;
+  protected pathManager: PathManager;
 
   constructor(config: DeploymentConfig, logger: Logger, network: ComposeNetworkConfig) {
     this.config = config;
     this.logger = logger;
     this.network = network;
+    this.pathManager = new PathManager();
     this.composeConfig = {
       version: '3.8',
       services: {}

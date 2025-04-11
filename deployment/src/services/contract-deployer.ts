@@ -165,6 +165,19 @@ export class ContractDeployer extends BaseDeployer {
     // Store combined.json
     execSync(`docker cp ${contractsServiceName}:/opt/zkevm/combined.json ${this.pathManager.getBuildDir()}/`,
       { stdio: 'inherit' });
+
+    // Store keystore
+    const keystoreNames = [
+      'sequencer.keystore', 
+      'aggregator.keystore', 
+      'proofsigner.keystore', 
+      'dac.keystore', 
+      'claimsponsor.keystore'
+    ];
+    for (const keystoreName of keystoreNames) {
+      execSync(`docker cp ${contractsServiceName}:/opt/zkevm/${keystoreName} ${this.pathManager.getBuildDir()}/`,
+      { stdio: 'inherit' });
+    }
   }
 
   private async updateGER(): Promise<void> {

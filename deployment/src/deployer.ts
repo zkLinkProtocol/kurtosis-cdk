@@ -13,6 +13,7 @@ import fs from 'fs';
 import { DeploymentConfig as Config } from './types/config';
 import { BaseDeployer, PathManager } from './services/base-deployer';
 import { Service } from './utils/service';
+import { BridgeDeployer } from './services/bridge-deployer';
 export class CDKDeployer {
   private readonly config: Config;
   private readonly logger: Logger;
@@ -77,10 +78,17 @@ export class CDKDeployer {
         // 部署 L2 合约
         if (this.config.deployment_stages.deploy_l2_contracts) {
           this.logger.info('部署 L2 合约...');
-          const l2ContractDeployer = new L2ContractDeployer(this.config, this.logger);
-          await l2ContractDeployer.deploy(true);
+          await this.deployL2Contracts();
         } else {
           this.logger.info('跳过部署 L2 合约...');
+        }
+
+        // 部署桥接服务
+        if (this.config.deployment_stages.deploy_cdk_bridge_infra) {
+          this.logger.info('部署桥接服务...');
+          await this.deployBridge();
+        } else {
+          this.logger.info('跳过部署桥接服务...');
         }
       } else {
         this.logger.info('跳过部署中心环境...');  
@@ -162,6 +170,16 @@ export class CDKDeployer {
       this.service
     );
     await agglayerDeployer.deploy();
+  }
+
+  private async deployBridge(): Promise<void> {
+    const bridgeDeployer = new BridgeDeployer(this.config, this.logger);
+    await bridgeDeployer.deploy();
+  }
+
+  private async deployL2Contracts(): Promise<void> {
+    const l2ContractDeployer = new L2ContractDeployer(this.config, this.logger);
+    await l2ContractDeployer.deploy(true);
   }
 
   private async deployAdditionalServices(): Promise<void> {
