@@ -133,8 +133,8 @@ export class AgglayerDeployer extends BaseDeployer {
     execSync(`docker compose -f ${this.pathManager.getBuildDir()}/agglayer-docker-compose.yml up -d`, { stdio: 'inherit' });
     
     // 等待服务启动
-    await this.waitForServiceStartup('agglayer-prover', this.config.deployment_args.agglayer_prover_port);
-    await this.waitForServiceStartup('agglayer', this.config.deployment_args.agglayer_readrpc_port);
+    // await this.waitForServiceStartup('agglayer-prover', this.config.deployment_args.agglayer_prover_port);
+    await this.waitForServiceStartup('agglayer', this.config.static_ports.agglayer_start_port);
   }
 
   private async waitForServiceStartup(serviceName: string, port: number): Promise<void> {
