@@ -64,7 +64,7 @@ export class AgglayerDeployer extends BaseDeployer {
 
   private async prepareAgglayerConfig(): Promise<void> {
     // 获取agglayer_prover的ip地址和端口
-    const agglayer_prover_url = `http://localhost:${this.config.deployment_args.agglayer_prover_port}`;
+    const agglayer_prover_url = `http://agglayer-prover${this.config.deployment_args.deployment_suffix}:${this.config.deployment_args.agglayer_prover_port}`;
     const db_configs = getDbConfigs(this.config);
     await this.configGenerator.renderTemplate('bridge-infra/agglayer-config.toml', {
       deployment_suffix: this.config.deployment_args.deployment_suffix,
