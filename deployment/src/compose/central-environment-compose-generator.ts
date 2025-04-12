@@ -192,8 +192,7 @@ export class CentralEnvironmentComposeGenerator extends BaseComposeGenerator {
         `${static_ports.zkevm_stateless_executor_start_port+1}:${args.zkevm_executor_port}`,
       ],
       entrypoint: ["/bin/bash", "-c"],
-      command: `[[ "${cpu_arch}" == "aarch64" || "${cpu_arch}" == "arm64" ]] && export EXPERIMENTAL_DOCKER_DESKTOP_FORCE_QEMU=1; \
-        /usr/local/bin/zkProver -c /etc/zkevm/${proverConfig.proverType}-config.json`
+      command: `[[ "${cpu_arch}" == "aarch64" || "${cpu_arch}" == "arm64" ]] && export EXPERIMENTAL_DOCKER_DESKTOP_FORCE_QEMU=1; /usr/local/bin/zkProver -c /etc/zkevm/${proverConfig.proverType}-config.json`
     });
 
     // 添加网络配置
