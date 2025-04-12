@@ -153,7 +153,7 @@ export class CDKDeployer {
       const centralEnvDeployer = new CentralEnvironmentDeployer(
         this.config,
         this.logger,
-        this.contractAddresses
+        this.service
       );
       await centralEnvDeployer.deploy();
       this.logger.info('CDK 中心环境部署完成');
