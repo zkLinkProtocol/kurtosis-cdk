@@ -3,9 +3,16 @@ import { DeploymentConfig } from '../types/config';
 import { Logger } from '../utils/logger';
 import path from 'path';
 
+export interface Artifact {
+  path: string;
+  name: string;
+}
+
 export interface BridgeExtraConfig {
-  l1_bridge_addr?: string;
-  l2_bridge_addr?: string;
+  bridge_service_config: Artifact;
+  claimtx_keystore: Artifact;
+  bridge_ui_config: Artifact;
+  reverse_proxy_config: Artifact;
 }
 
 export class BridgeComposeGenerator extends BaseComposeGenerator {
@@ -15,56 +22,100 @@ export class BridgeComposeGenerator extends BaseComposeGenerator {
 
   public async generate(extraConfig: BridgeExtraConfig): Promise<DockerComposeConfig> {
     await this.addBridgeService(extraConfig);
-    await this.addBridgeUiService();
+    await this.addBridgeUiService(extraConfig);
+    await this.addReverseProxy(extraConfig);
+    this.addNetwork();
     return this.composeConfig;
   }
 
   private async addBridgeService(extraConfig: BridgeExtraConfig): Promise<void> {
     const args = this.config.deployment_args;
-    const serviceName = this.getServiceName('bridge-service');
+    const static_ports = this.config.static_ports;
+    const serviceName = this.getServiceName('zkevm-bridge-service');
 
     // 添加 Bridge 服务配置
     this.addService(serviceName, {
       image: args.zkevm_bridge_service_image,
-      environment: {
-        ZKEVM_NODE_URL: `http://localhost:${args.zkevm_rpc_http_port}`,
-        L1_RPC_URL: args.l1_rpc_url,
-        L1_BRIDGE_ADDR: extraConfig.l1_bridge_addr || '',
-        L2_BRIDGE_ADDR: extraConfig.l2_bridge_addr || '',
-        METRICS_ENABLED: 'true',
-        METRICS_PORT: args.zkevm_bridge_metrics_port.toString()
-      },
+      container_name: serviceName,
+      volumes: [
+        {
+          type: 'bind',
+          source: extraConfig.bridge_service_config.name,
+          target: `/etc/zkevm/${extraConfig.bridge_service_config.name}`,
+          bind: {
+            create_host_path: true
+          }
+        },
+        {
+          type: 'bind',
+          source: extraConfig.claimtx_keystore.name,
+          target: `/etc/zkevm/${extraConfig.claimtx_keystore.name}`,
+          bind: {
+            create_host_path: true
+          }
+        }
+      ],
       ports: [
-        `${args.zkevm_bridge_grpc_port}:${args.zkevm_bridge_grpc_port}`,
-        `${args.zkevm_bridge_metrics_port}:${args.zkevm_bridge_metrics_port}`,
-        `${args.zkevm_bridge_rpc_port}:${args.zkevm_bridge_rpc_port}`
-      ]
+        `${static_ports.zkevm_bridge_service_start_port}:${args.zkevm_bridge_rpc_port}`, // rpc
+        `${static_ports.zkevm_bridge_service_start_port + 1}:${args.zkevm_bridge_grpc_port}`, // grpc
+        `${static_ports.zkevm_bridge_service_start_port + 2}:${args.zkevm_bridge_metrics_port}` // metrics
+      ],
+      entrypoint: [
+        "/app/zkevm-bridge",
+      ],
+      command: ["run", "--cfg", `/etc/zkevm/${extraConfig.bridge_service_config.name}`],
     });
-
-    // 添加网络配置
-    this.addNetwork();
   }
 
-  private async addBridgeUiService(): Promise<void> {
+  private async addBridgeUiService(extraConfig: BridgeExtraConfig): Promise<void> {
     const args = this.config.deployment_args;
-    const serviceName = this.getServiceName('bridge-ui');
+    const static_ports = this.config.static_ports;
+    const serviceName = this.getServiceName('zkevm-bridge-ui');
 
     // 添加 Bridge UI 服务配置
     this.addService(serviceName, {
       image: args.zkevm_bridge_ui_image,
-      environment: {
-        BRIDGE_API_URL: `http://localhost:${args.zkevm_bridge_rpc_port}`,
-        L1_NETWORK_ID: args.l1_chain_id.toString(),
-        L2_NETWORK_ID: args.zkevm_rollup_chain_id.toString(),
-        L1_EXPLORER_URL: args.l1_explorer_url,
-        L2_EXPLORER_URL: args.polygon_zkevm_explorer || ''
-      },
+      container_name: serviceName,
+      volumes: [
+        {
+          type: 'bind',
+          source: extraConfig.bridge_ui_config.name,
+          target: `/etc/zkevm/${extraConfig.bridge_ui_config.name}`,
+          bind: {
+            create_host_path: true
+          }
+        }
+      ],
       ports: [
-        `${args.zkevm_bridge_ui_port}:80`
+        `${static_ports.zkevm_bridge_ui_start_port}:${args.zkevm_bridge_ui_port}`
+      ],
+      entrypoint: ["/bin/sh", "-c"],
+      command: ["set -a; source /etc/zkevm/.env; set +a; sh /app/scripts/deploy.sh run"]
+    });
+  }
+
+  private async addReverseProxy(extraConfig: BridgeExtraConfig): Promise<void> {
+    const args = this.config.deployment_args;
+    const static_ports = this.config.static_ports;
+    const serviceName = this.getServiceName('zkevm-bridge-proxy');
+
+    // 添加 Reverse Proxy 服务配置
+    this.addService(serviceName, {
+      image: args.zkevm_bridge_proxy_image,
+      container_name: serviceName,
+      volumes: [
+        {
+          type: 'bind',
+          source: extraConfig.reverse_proxy_config.name,
+          target: `/usr/local/etc/haproxy/${extraConfig.reverse_proxy_config.name}`,
+          bind: {
+            create_host_path: true
+          }
+        }
+      ],
+      ports: [
+        `${static_ports.reverse_proxy_start_port}:80`
       ]
     });
-
-    // 添加网络配置
-    this.addNetwork();
   }
 } 

@@ -6,24 +6,28 @@ import { writeFileSync } from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 import { BridgeComposeGenerator, BridgeExtraConfig } from '../compose/bridge-compose-generator';
+import { ContractSetupAddresses, Service } from '../utils/service';
+
 
 export class BridgeDeployer extends BaseDeployer {
-  private l1_bridge_addr: string = '';
-  private l2_bridge_addr: string = '';
+  private readonly service: Service;
+  private readonly contractSetupAddresses: ContractSetupAddresses;
 
-  constructor(config: DeploymentConfig, logger: Logger) {
+  constructor(config: DeploymentConfig, logger: Logger, service: Service) {
     super(config, logger);
+    this.service = service;
+    this.contractSetupAddresses = this.service.getContractSetupAddresses();
   }
 
   public async deploy(): Promise<void> {
     this.logger.info('部署桥接服务...');
     
     try {
-      // 生成 docker-compose 配置
-      const composePath = await this.generateDockerComposeConfig();
+      // 生成 bridge 配置
+      await this.generateBridgeConfig();
 
       // 启动桥接服务
-      this.startBridgeServices(composePath);
+      this.startBridgeServices();
 
       // 等待桥接服务启动
       await this.waitForBridgeStartup();
@@ -35,29 +39,73 @@ export class BridgeDeployer extends BaseDeployer {
     }
   }
 
-  private async generateDockerComposeConfig(): Promise<string> {
-    // 使用新的compose生成器
-    const composeGenerator = new BridgeComposeGenerator(
-      this.config, 
-      this.logger,
-      { name: 'zklink-network' }
-    );
+  private async generateBridgeConfig(): Promise<void> {
+    // 生成bridge配置
+    await this.configGenerator.renderTemplate('bridge-infra/bridge-config.toml', {
+      ...this.config.deployment_args,
+      ...this.contractSetupAddresses,
+      bridge_db: {
+        hostname: this.config.database.postgres_host,
+        port: this.config.database.postgres_port,
+        user: this.config.database.central_env_dbs.bridge_db.user,
+        password: this.config.database.central_env_dbs.bridge_db.password,
+        name: this.config.database.central_env_dbs.bridge_db.name,
+      },
+    }, 'bridge-config.toml');
 
-    const extraConfig: BridgeExtraConfig = {
-      l1_bridge_addr: this.l1_bridge_addr,
-      l2_bridge_addr: this.l2_bridge_addr
-    };
+    if (this.config.deployment_stages.deploy_cdk_bridge_ui) {
+      // 生成 bridge-ui 的 .env 文件
+      await this.configGenerator.renderTemplate('bridge-infra/.env', {
+        ...this.contractSetupAddresses,
+        l1_explorer_url: this.config.deployment_args.l1_explorer_url,
+        zkevm_explorer_url: this.config.deployment_args.polygon_zkevm_explorer,
+      }, '.env');
 
-    const composeConfig = await composeGenerator.generate(extraConfig);
-
-    // 写入配置文件
-    const composePath = path.join(this.pathManager.getBuildDir(), 'bridge-docker-compose.yml');
-    writeFileSync(composePath, yaml.dump(composeConfig));
-    return composePath;
+      if (this.config.deployment_stages.deploy_l1) {
+        // 生成 reverse-proxy 的 haproxy.cfg 文件
+        await this.configGenerator.renderTemplate('bridge-infra/haproxy.cfg', {
+          l1rpc_ip: `anvil${this.config.deployment_args.deployment_suffix}`,
+          l1rpc_port: this.config.deployment_args.l1_rpc_url.split(':')[2],
+          l2rpc_ip: `cdk-erigon-rpc${this.config.deployment_args.deployment_suffix}`,
+          l2rpc_port: this.service.getL2RpcUrl().http.split(':')[2],
+          bridgeservice_ip: `zkevm-bridge-service${this.config.deployment_args.deployment_suffix}`,
+          bridgeservice_port: this.config.static_ports.zkevm_bridge_service_start_port,
+          bridgeui_ip: `zkevm-bridge-ui${this.config.deployment_args.deployment_suffix}`,
+          bridgeui_port: this.config.static_ports.zkevm_bridge_ui_start_port,
+        }, 'haproxy.cfg');
+      }
+    }
   }
 
-  private startBridgeServices(composePath: string): void {
+  private async startBridgeServices(): Promise<void> {
+    // 生成 compose 文件
+    const bridgeComposeGenerator = new BridgeComposeGenerator(this.config, this.logger, { name: 'zklink-network'});
+    const composeConfig = await bridgeComposeGenerator.generate({
+      bridge_service_config: {
+        path: this.pathManager.getBuildPath('bridge-config.toml'),
+        name: 'bridge-config.toml'
+      },
+      claimtx_keystore: {
+        path: this.pathManager.getBuildPath('claimtxmanager.keystore'),
+        name: 'claimtxmanager.keystore'
+      },
+      bridge_ui_config: {
+        path: this.pathManager.getBuildPath('.env'),
+        name: '.env'
+      },
+      reverse_proxy_config: {
+        path: this.pathManager.getBuildPath('haproxy.cfg'),
+        name: 'haproxy.cfg'
+      }
+    });
+
+    // 写入 compose 文件
+    const composePath = path.join(this.pathManager.getBuildDir(), 'bridge-docker-compose.yml');
+    writeFileSync(composePath, yaml.dump(composeConfig));
+
+    // 使用 Docker Compose 启动服务
     execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
+    
   }
 
   private async waitForBridgeStartup(): Promise<void> {
@@ -69,7 +117,7 @@ export class BridgeDeployer extends BaseDeployer {
     while (retries < maxRetries) {
       try {
         // 检查桥接服务是否启动
-        const result = await fetch(`http://localhost:${this.config.deployment_args.zkevm_bridge_rpc_port}/health`);
+        const result = await fetch(`http://localhost:${this.config.static_ports.zkevm_bridge_service_start_port}/health`);
         if (result.ok) {
           this.logger.info('桥接服务已成功启动！');
           return;
@@ -84,10 +132,5 @@ export class BridgeDeployer extends BaseDeployer {
     }
     
     throw new Error('桥接服务启动超时');
-  }
-
-  public setBridgeAddresses(l1BridgeAddr: string, l2BridgeAddr: string): void {
-    this.l1_bridge_addr = l1BridgeAddr;
-    this.l2_bridge_addr = l2BridgeAddr;
   }
 } 

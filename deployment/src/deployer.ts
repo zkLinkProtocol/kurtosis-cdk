@@ -95,12 +95,12 @@ export class CDKDeployer {
       }
 
       // 部署额外服务
-      if (this.config.deployment_args.additional_services.length > 0) {
-        this.logger.info('部署额外服务...');
-        await this.deployAdditionalServices();
-      } else {
-        this.logger.info('跳过部署额外服务...');
-      }
+      // if (this.config.deployment_args.additional_services.length > 0) {
+      //   this.logger.info('部署额外服务...');
+      //   await this.deployAdditionalServices();
+      // } else {
+      //   this.logger.info('跳过部署额外服务...');
+      // }
 
       this.logger.info('CDK 环境部署完成');
     } catch (error) {
@@ -173,7 +173,7 @@ export class CDKDeployer {
   }
 
   private async deployBridge(): Promise<void> {
-    const bridgeDeployer = new BridgeDeployer(this.config, this.logger);
+    const bridgeDeployer = new BridgeDeployer(this.config, this.logger, this.service);
     await bridgeDeployer.deploy();
   }
 
