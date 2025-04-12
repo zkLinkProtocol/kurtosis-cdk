@@ -107,9 +107,9 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
       chain_name: this.config.deployment_args.chain_name,
     }, chainspecName);
 
-    const chainConfigName = 'cdk-erigon-chain-config.json';
-    const chainAllocsName = 'cdk-erigon-chain-allocs.json';
-    const chainFirstBatchName = 'cdk-erigon-chain-first-batch.json';
+    const chainConfigName = `dynamic-${this.config.deployment_args.chain_name}-conf.json`;
+    const chainAllocsName = `dynamic-${this.config.deployment_args.chain_name}-allocs.json`;
+    const chainFirstBatchName = 'first-batch-config.json';
     // 创建 datadir
     const datadirPath = this.pathManager.getDataPath('datadir');
     if (!existsSync(datadirPath)) {
@@ -254,9 +254,9 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
       "chain_name": this.config.deployment_args.chain_name,
     }, chainspecName);
 
-    const chainConfigName = 'cdk-erigon-chain-config.json';
-    const chainAllocsName = 'cdk-erigon-chain-allocs.json';
-    const chainFirstBatchName = 'cdk-erigon-chain-first-batch.json';
+    const chainConfigName = `dynamic-${this.config.deployment_args.chain_name}-conf.json`;
+    const chainAllocsName = `dynamic-${this.config.deployment_args.chain_name}-allocs.json`;
+    const chainFirstBatchName = 'first-batch-config.json';
     
     // 生成 compose 文件
     const composeGenerator = new CentralEnvironmentComposeGenerator(this.config, this.logger, { name: 'zklink-network' });
