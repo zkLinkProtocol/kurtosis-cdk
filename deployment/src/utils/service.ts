@@ -91,7 +91,7 @@ export class Service {
             zkevm_admin_address: combinedJson.admin,
         };
 
-        if (this.config.deployment_stages.deploy_optimism_rollup) {
+        if (!this.config.deployment_stages.deploy_optimism_rollup) {
             contractSetupAddresses.zkevm_rollup_address = combinedJson.rollupAddress;
         }
 
@@ -106,7 +106,7 @@ export class Service {
   public getL2RpcUrl(): { http: string; ws: string } {
     const http = `http://cdk-erigon-rpc${this.config.deployment_args.deployment_suffix}:${this.config.static_ports.cdk_erigon_rpc_start_port}`;
     const ws = `ws://cdk-erigon-rpc${this.config.deployment_args.deployment_suffix}:${this.config.static_ports.cdk_erigon_rpc_start_port+1}`;
-    
+
     return { http, ws };
   }
   
