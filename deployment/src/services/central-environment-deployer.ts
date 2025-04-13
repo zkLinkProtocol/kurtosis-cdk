@@ -216,7 +216,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     });
 
     // 写入 compose 文件
-    const composePath = path.join(this.pathManager.getBuildDir(), 'zkevm-pool-manager-docker-compose.yml');
+    const composePath = path.join(this.pathManager.getBuildDir(), 'pool-manager-docker-compose.yml');
     writeFileSync(composePath, yaml.dump(composeConfig));
 
     // 启动服务
