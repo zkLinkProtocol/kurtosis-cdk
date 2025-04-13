@@ -373,7 +373,7 @@ export class CentralEnvironmentComposeGenerator extends BaseComposeGenerator {
         {
           type: 'bind' as const,
           source: zkevmPoolManagerConfig.zkevmPoolManagerConfig.path,
-          target: `/etc/zkevm/${zkevmPoolManagerConfig.zkevmPoolManagerConfig.name}`,
+          target: `/etc/pool-manager/${zkevmPoolManagerConfig.zkevmPoolManagerConfig.name}`,
           bind: {
             create_host_path: true
           }
