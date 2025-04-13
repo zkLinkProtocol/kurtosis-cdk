@@ -344,7 +344,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
 
     // 等待服务启动
-    // await this.waitForServiceStartup('prover', this.config.static_ports.zkevm_prover_start_port);
+    await this.checkDockerContainerStatus('zkevm-prover');
   }
 
   private async deployCDKErigonNode(): Promise<void> {
@@ -460,10 +460,38 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
 
     // 等待服务启动
-    await this.waitForServiceStartup('dac', this.config.static_ports.zkevm_dac_start_port);
+    // await this.waitForServiceStartup('dac', this.config.static_ports.zkevm_dac_start_port);
+    await this.checkDockerContainerStatus('zkevm-dac');
   }
 
   private isCDKValidium(): boolean {
     return this.config.deployment_args.consensus_contract_type === 'cdk-validium';
+  }
+
+  private async checkDockerContainerStatus(serviceName: string): Promise<void> {
+    const containerName = `${serviceName}-${this.config.deployment_args.deployment_suffix}`;
+
+    const maxRetries = 60; // 最多等待 5 分钟
+    let retries = 0;
+
+    while (retries < maxRetries) {
+      try {
+        const command = `docker ps -f name=${containerName} --format "{{.Status}}"`;
+        const status = execSync(command, { encoding: 'utf-8' }).trim();
+        if (status !== 'Up') {
+          throw new Error(`${serviceName} 服务未启动`);
+        }
+        this.logger.info(`${serviceName} 服务已启动`);
+        return;
+      } catch (error) {
+        // 忽略错误，继续重试
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 5000)); // 等待 5 秒
+      retries++;
+      this.logger.info(`${serviceName} 服务正在启动中... (${retries}/${maxRetries})`);
+    }
+
+    throw new Error(`${serviceName} 服务启动失败`);
   }
 } 
