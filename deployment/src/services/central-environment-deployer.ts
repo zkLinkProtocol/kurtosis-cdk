@@ -317,7 +317,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     await this.configGenerator.renderTemplate('trusted-node/prover-config.json', {
       ...this.config.deployment_args,
       prover_db: {
-        host: this.config.database?.postgres_host,
+        hostname: this.config.database?.postgres_host,
         port: this.config.database?.postgres_port,
         name: this.config.database?.prover_db?.name,
         user: this.config.database?.prover_db?.user,
@@ -439,7 +439,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
       ...this.config.deployment_args,
       ...this.contractSetupAddresses,
       dac_db: {
-        host: this.config.database?.postgres_host,
+        hostname: this.config.database?.postgres_host,
         port: this.config.database?.postgres_port,
         name: this.config.database?.central_env_dbs.dac_db.name,
         user: this.config.database?.central_env_dbs.dac_db.user,
