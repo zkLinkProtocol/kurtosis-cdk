@@ -406,7 +406,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
 
     // 等待服务启动
-    await this.waitForServiceStartup('cdk-erigon-node', this.config.static_ports.cdk_node_start_port);
+    await this.checkDockerContainerStatus('cdk-node');
   }
 
   private async prepareStatelessExecutorConfig(): Promise<void> {
