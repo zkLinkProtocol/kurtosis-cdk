@@ -383,7 +383,7 @@ export class CentralEnvironmentComposeGenerator extends BaseComposeGenerator {
         `${static_ports.zkevm_pool_manager_start_port}:${args.zkevm_pool_manager_port}`,
       ],
       entrypoint: ["/bin/sh", "-c"],
-      command: ["/app/zkevm-pool-manager run --cfg /etc/pool-manager/pool-manager-config.toml"],
+      command: [`/app/zkevm-pool-manager run --cfg /etc/pool-manager/${zkevmPoolManagerConfig.zkevmPoolManagerConfig.name}`],
     });
 
     // 添加网络配置

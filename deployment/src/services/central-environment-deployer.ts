@@ -191,7 +191,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     this.logger.info('部署 zkevm-pool-manager...');
 
     // 生成 zkevm-pool-manager 服务配置
-    const configName = 'zkevm-pool-manager-config.toml';
+    const configName = 'pool-manager-config.toml';
     await this.configGenerator.renderTemplate('pool-manager/pool-manager-config.toml', {
       ...this.config.deployment_args,
       pool_manager_db: {
