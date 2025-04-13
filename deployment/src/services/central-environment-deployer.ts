@@ -344,23 +344,11 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
 
     // 等待服务启动
-    await this.waitForServiceStartup('prover', this.config.static_ports.zkevm_prover_start_port);
-  }
-
-  private async getGenesisArtifact(): Promise<string> {
-    this.logger.info('获取 Genesis 文件...');
-
-    if (this.config.deployment_args.genesis_file) {
-      return this.config.deployment_args.genesis_file;
-    }
-
-    const genesisFile = this.config.deployment_args.genesis_file || 'default-genesis.json';
-    await this.configGenerator.renderTemplate(genesisFile, {}, 'genesis.json');
-    return this.pathManager.getBuildPath('genesis.json');
+    // await this.waitForServiceStartup('prover', this.config.static_ports.zkevm_prover_start_port);
   }
 
   private async deployCDKErigonNode(): Promise<void> {
-    this.logger.info('部署 CDK Erigon 组件...');
+    this.logger.info('部署 cdk erigon node...');
 
     // 生成 cdk Erigon node 服务配置
     const configName = 'cdk-node-config.toml';
@@ -410,15 +398,15 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     });
 
     // 写入 compose 文件
-    const composePath = path.join(this.pathManager.getBuildDir(), 'cdk-node-docker-compose.yml');
+    const composePath = path.join(this.pathManager.getBuildDir(), 'cdk-erigon-node-docker-compose.yml');
     writeFileSync(composePath, yaml.dump(composeConfig));
 
     // 启动服务
-    this.logger.info('启动 CDK Erigon 组件...');
+    this.logger.info('启动 cdk erigon node...');
     execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
 
     // 等待服务启动
-    await this.waitForServiceStartup('cdk-node', this.config.static_ports.cdk_node_start_port);
+    await this.waitForServiceStartup('cdk-erigon-node', this.config.static_ports.cdk_node_start_port);
   }
 
   private async prepareStatelessExecutorConfig(): Promise<void> {
