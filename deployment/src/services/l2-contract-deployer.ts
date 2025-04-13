@@ -20,7 +20,7 @@ export class L2ContractDeployer extends BaseDeployer {
       // 执行 L2 合约部署
       const contractServiceName = `contracts${this.config.deployment_args.deployment_suffix}`;
       const cmd = `docker exec ${contractServiceName} \
-        /bin/sh -c "export l2_rpc_url=${l2RpcUrl} && \
+        /bin/sh -c "export l2_rpc_url=${l2RpcUrl.http} && \
         chmod +x /opt/contract-deploy/run-l2-contract-setup.sh && \
         /opt/contract-deploy/run-l2-contract-setup.sh ${shouldDeployL2Contracts}"`;
 
