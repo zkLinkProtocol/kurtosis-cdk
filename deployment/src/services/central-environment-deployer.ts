@@ -79,7 +79,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
   }
 
   private async deploySequencer(): Promise<void> {
-    this.logger.info('部署 sequencer...');
+    this.logger.info('部署 cdk erigon sequencer...');
 
     // 如果启用了严格模式,准备无状态执行器配置
     if (this.config.deployment_args.erigon_strict_mode) {
@@ -153,7 +153,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     });
 
     // 写入 compose 文件
-    const composePath = path.join(this.pathManager.getBuildDir(), 'cdk-sequencer-docker-compose.yml');
+    const composePath = path.join(this.pathManager.getBuildDir(), 'cdk-erigon-sequencer-docker-compose.yml');
     writeFileSync(composePath, yaml.dump(composeConfig));
 
     // 启动服务
@@ -188,7 +188,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
   }
 
   private async deployZkevmPoolManager(): Promise<void> {
-    this.logger.info('部署 zkevm-pool-manager...');
+    this.logger.info('部署 zkevm pool manager...');
 
     // 生成 zkevm-pool-manager 服务配置
     const configName = 'pool-manager-config.toml';
@@ -216,7 +216,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     });
 
     // 写入 compose 文件
-    const composePath = path.join(this.pathManager.getBuildDir(), 'pool-manager-docker-compose.yml');
+    const composePath = path.join(this.pathManager.getBuildDir(), 'zkevm-pool-manager-docker-compose.yml');
     writeFileSync(composePath, yaml.dump(composeConfig));
 
     // 启动服务
@@ -228,7 +228,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
   }
 
   private async deployRpc(): Promise<void> {
-    this.logger.info('部署 CDK Erigon node...');
+    this.logger.info('部署 cdk rpc...');
 
     // 生成 cdk Erigon node 服务配置
     const zkevm_sequence_url = `http://cdk-erigon-sequencer${this.config.deployment_args.deployment_suffix}:${this.config.static_ports.cdk_erigon_sequencer_start_port}`
@@ -287,15 +287,15 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     });
 
     // 写入 compose 文件
-    const composePath = path.join(this.pathManager.getBuildDir(), 'cdk-erigon-node-docker-compose.yml');
+    const composePath = path.join(this.pathManager.getBuildDir(), 'cdk-erigon-rpc-docker-compose.yml');
     writeFileSync(composePath, yaml.dump(composeConfig));
 
     // 启动服务
-    this.logger.info('启动 CDK Erigon node 服务...');
+    this.logger.info('启动 cdk rpc 服务...');
     execSync(`docker compose -f ${composePath} up -d`, { stdio: 'inherit' });
 
     // 等待服务启动
-    await this.waitForServiceStartup('cdk-erigon-node', this.config.static_ports.cdk_erigon_rpc_start_port);
+    await this.waitForServiceStartup('cdk-erigon-rpc', this.config.static_ports.cdk_erigon_rpc_start_port);
   }
 
   private shouldDeployProver(): boolean {

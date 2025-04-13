@@ -482,6 +482,15 @@ export class CentralEnvironmentComposeGenerator extends BaseComposeGenerator {
             create_host_path: true
           }
         },
+        // 添加 proc-runner
+        {
+          type: 'bind' as const,
+          source: this.pathManager.getTemplatePath('proc-runner.sh'),
+          target: `/usr/local/share/proc-runner/proc-runner.sh`,
+          bind: {
+            create_host_path: true,
+          }
+        }
       ],
       ports: [
         `${static_ports.cdk_erigon_rpc_start_port}:${args.zkevm_rpc_http_port}`,
