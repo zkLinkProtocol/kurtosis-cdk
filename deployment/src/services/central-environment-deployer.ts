@@ -478,7 +478,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
       try {
         const command = `docker ps -f name=${containerName} --format "{{.Status}}"`;
         const status = execSync(command, { encoding: 'utf-8' }).trim();
-        if (status !== 'Up') {
+        if (!status.includes('Up')) {
           throw new Error(`${serviceName} 服务未启动`);
         }
         this.logger.info(`${serviceName} 服务已启动`);
