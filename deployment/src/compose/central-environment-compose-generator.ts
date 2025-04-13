@@ -187,10 +187,7 @@ export class CentralEnvironmentComposeGenerator extends BaseComposeGenerator {
           }
         }
       ],
-      ports: [
-        `${static_ports.zkevm_stateless_executor_start_port}:${args.zkevm_hash_db_port}`,
-        `${static_ports.zkevm_stateless_executor_start_port+1}:${args.zkevm_executor_port}`,
-      ],
+      ports: this.getProverPorts(proverConfig),
       entrypoint: ["/bin/bash", "-c"],
       command: [`/usr/local/bin/zkProver -c /etc/zkevm/${proverConfig.proverType}-config.json`],
       // 添加环境变量
@@ -203,6 +200,29 @@ export class CentralEnvironmentComposeGenerator extends BaseComposeGenerator {
     this.addNetwork();
       
   }
+
+  private getProverPorts(proverConfig: ProverExtraConfig): string[] {
+    if (proverConfig.proverType === 'stateless-executor') {
+      return [
+        `${this.config.static_ports.zkevm_stateless_executor_start_port}:${this.config.deployment_args.zkevm_hash_db_port}`,
+        `${this.config.static_ports.zkevm_stateless_executor_start_port+1}:${this.config.deployment_args.zkevm_executor_port}`
+      ];
+    } else if (proverConfig.proverType === 'executor') {
+      return [
+        `${this.config.static_ports.zkevm_executor_start_port}:${this.config.deployment_args.zkevm_hash_db_port}`,
+        `${this.config.static_ports.zkevm_executor_start_port+1}:${this.config.deployment_args.zkevm_executor_port}`
+      ];
+    } else if (proverConfig.proverType === 'prover') {
+      return [
+        `${this.config.static_ports.zkevm_prover_start_port}:${this.config.deployment_args.zkevm_hash_db_port}`,
+        `${this.config.static_ports.zkevm_prover_start_port+1}:${this.config.deployment_args.zkevm_executor_port}`
+      ];
+    } else {
+      this.logger.error(`Invalid prover type: ${proverConfig.proverType}`);
+      return [];
+    }
+  }
+  
 
   private async addSequencerService(extraConfig: CentralEnvironmentExtraConfig): Promise<void> {
     const sequencerConfig = extraConfig.config as SequencerExtraConfig;
