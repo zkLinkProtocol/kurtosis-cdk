@@ -469,7 +469,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
   }
 
   private async checkDockerContainerStatus(serviceName: string): Promise<void> {
-    const containerName = `${serviceName}-${this.config.deployment_args.deployment_suffix}`;
+    const containerName = `${serviceName}${this.config.deployment_args.deployment_suffix}`;
 
     const maxRetries = 60; // 最多等待 5 分钟
     let retries = 0;
