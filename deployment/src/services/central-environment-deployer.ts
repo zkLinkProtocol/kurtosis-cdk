@@ -231,9 +231,9 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     this.logger.info('部署 cdk rpc...');
 
     // 生成 cdk Erigon node 服务配置
-    const zkevm_sequence_url = `http://cdk-erigon-sequencer${this.config.deployment_args.deployment_suffix}:${this.config.static_ports.cdk_erigon_sequencer_start_port}`
-    const zkevm_datastreamer_url = `http://cdk-erigon-sequencer${this.config.deployment_args.deployment_suffix}:${this.config.static_ports.cdk_erigon_sequencer_start_port + 2}`
-    const pool_manager_url = `http://zkevm-pool-manager${this.config.deployment_args.deployment_suffix}:${this.config.static_ports.zkevm_pool_manager_start_port}`
+    const zkevm_sequence_url = `http://cdk-erigon-sequencer${this.config.deployment_args.deployment_suffix}:${this.config.deployment_args.zkevm_rpc_http_port}`
+    const zkevm_datastreamer_url = `http://cdk-erigon-sequencer${this.config.deployment_args.deployment_suffix}:${this.config.deployment_args.zkevm_data_streamer_port}`
+    const pool_manager_url = `http://zkevm-pool-manager${this.config.deployment_args.deployment_suffix}:${this.config.deployment_args.zkevm_pool_manager_port}`
 
     await this.configGenerator.renderTemplate('cdk-erigon/config.yml', {
       ...this.config.deployment_args,
