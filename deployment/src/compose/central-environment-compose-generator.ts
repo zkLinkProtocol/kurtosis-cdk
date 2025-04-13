@@ -538,7 +538,7 @@ export class CentralEnvironmentComposeGenerator extends BaseComposeGenerator {
         `${static_ports.zkevm_dac_start_port}:${args.zkevm_dac_port}`,
       ],
       entrypoint: ["/app/cdk-data-availability"],
-      command: ['run --cfg /etc/zkevm/dac-config.toml'],
+      command: ['run', '--cfg', '/etc/zkevm/dac-config.toml'],
     });
 
     // 添加网络配置
