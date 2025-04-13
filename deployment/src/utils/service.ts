@@ -104,8 +104,8 @@ export class Service {
   
   // 返回L2 RPC服务的HTTP和WS URL
   public getL2RpcUrl(): { http: string; ws: string } {
-    const http = `http://cdk-erigon-rpc${this.config.deployment_args.deployment_suffix}:${this.config.static_ports.cdk_erigon_rpc_start_port}`;
-    const ws = `ws://cdk-erigon-rpc${this.config.deployment_args.deployment_suffix}:${this.config.static_ports.cdk_erigon_rpc_start_port+1}`;
+    const http = `http://cdk-erigon-rpc${this.config.deployment_args.deployment_suffix}:${this.config.deployment_args.zkevm_rpc_http_port}`;
+    const ws = `ws://cdk-erigon-rpc${this.config.deployment_args.deployment_suffix}:${this.config.deployment_args.zkevm_rpc_ws_port}`;
 
     return { http, ws };
   }
