@@ -92,8 +92,8 @@ export class AdditionalServicesComposeGenerator extends BaseComposeGenerator {
         this.addService(bs_backend, {
             image: IMAGE_BACKEND,
             container_name: bs_backend,
-            expose: [
-                `${config.backendConfig.port}`
+            ports: [
+                `${args.blockscout_params.blockscout_public_port+1}:${config.backendConfig.port}`
             ],
             environment: config.backendConfig.envs,
             depends_on: [bs_postgres],
