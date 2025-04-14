@@ -69,9 +69,9 @@ export class BridgeDeployer extends BaseDeployer {
           l2rpc_ip: `cdk-erigon-rpc${this.config.deployment_args.deployment_suffix}`,
           l2rpc_port: this.service.getL2RpcUrl().http.split(':')[2],
           bridgeservice_ip: `zkevm-bridge-service${this.config.deployment_args.deployment_suffix}`,
-          bridgeservice_port: this.config.static_ports.zkevm_bridge_service_start_port,
+          bridgeservice_port: this.config.deployment_args.zkevm_bridge_rpc_port,
           bridgeui_ip: `zkevm-bridge-ui${this.config.deployment_args.deployment_suffix}`,
-          bridgeui_port: this.config.static_ports.zkevm_bridge_ui_start_port,
+          bridgeui_port: this.config.deployment_args.zkevm_bridge_ui_port,
         }, 'haproxy.cfg');
       }
     }
