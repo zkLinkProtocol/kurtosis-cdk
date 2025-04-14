@@ -114,18 +114,20 @@ export class AdditionalServicesDeployer extends BaseDeployer {
     const blockscoutConfig = await this.generateBlockscoutConfig();
 
     // 生成 init.sql 文件
-    await this.configGenerator.renderTemplate('blockscout/init.sql', [
-        {
-            db: blockscoutConfig.POSTGRES.NAME,
-            user: blockscoutConfig.POSTGRES.USER,
-            password: blockscoutConfig.POSTGRES.PASSWORD
-        },
-        {
-            db: blockscoutConfig.BACKEND.DB.NAME,
-            user: blockscoutConfig.BACKEND.DB.USER,
-            password: blockscoutConfig.BACKEND.DB.PASSWORD
-        }
-    ], 'init-bs.sql');
+    await this.configGenerator.renderTemplate('blockscout/init.sql', {
+        dbs: [
+            {
+                db: blockscoutConfig.POSTGRES.NAME,
+                user: blockscoutConfig.POSTGRES.USER,
+                password: blockscoutConfig.POSTGRES.PASSWORD
+            },
+            {
+                db: blockscoutConfig.BACKEND.DB.NAME,
+                user: blockscoutConfig.BACKEND.DB.USER,
+                password: blockscoutConfig.BACKEND.DB.PASSWORD
+            },
+        ]
+  }, 'init-bs.sql');
 
     // 生成 docker-compose.yml 文件
     const additionalServicesComposeGenerator = new AdditionalServicesComposeGenerator(this.config, this.logger, { name: 'zklink-network'});
