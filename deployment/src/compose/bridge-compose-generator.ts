@@ -40,7 +40,7 @@ export class BridgeComposeGenerator extends BaseComposeGenerator {
       volumes: [
         {
           type: 'bind',
-          source: extraConfig.bridge_service_config.name,
+          source: extraConfig.bridge_service_config.path,
           target: `/etc/zkevm/${extraConfig.bridge_service_config.name}`,
           bind: {
             create_host_path: true
@@ -48,7 +48,7 @@ export class BridgeComposeGenerator extends BaseComposeGenerator {
         },
         {
           type: 'bind',
-          source: extraConfig.claimtx_keystore.name,
+          source: extraConfig.claimtx_keystore.path,
           target: `/etc/zkevm/${extraConfig.claimtx_keystore.name}`,
           bind: {
             create_host_path: true
@@ -79,7 +79,7 @@ export class BridgeComposeGenerator extends BaseComposeGenerator {
       volumes: [
         {
           type: 'bind',
-          source: extraConfig.bridge_ui_config.name,
+          source: extraConfig.bridge_ui_config.path,
           target: `/etc/zkevm/${extraConfig.bridge_ui_config.name}`,
           bind: {
             create_host_path: true
@@ -106,7 +106,7 @@ export class BridgeComposeGenerator extends BaseComposeGenerator {
       volumes: [
         {
           type: 'bind',
-          source: extraConfig.reverse_proxy_config.name,
+          source: extraConfig.reverse_proxy_config.path,
           target: `/usr/local/etc/haproxy/${extraConfig.reverse_proxy_config.name}`,
           bind: {
             create_host_path: true

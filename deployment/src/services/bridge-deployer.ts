@@ -30,7 +30,7 @@ export class BridgeDeployer extends BaseDeployer {
       this.startBridgeServices();
 
       // 等待桥接服务启动
-      await this.waitForBridgeStartup();
+      await this.checkDockerContainerStatus('zkevm-bridge-service');
 
       this.logger.info('桥接服务部署完成');
     } catch (error) {
@@ -108,29 +108,30 @@ export class BridgeDeployer extends BaseDeployer {
     
   }
 
-  private async waitForBridgeStartup(): Promise<void> {
-    this.logger.info('等待桥接服务启动...');
-    
+  private async checkDockerContainerStatus(serviceName: string): Promise<void> {
+    const containerName = `${serviceName}${this.config.deployment_args.deployment_suffix}`;
+
     const maxRetries = 60; // 最多等待 5 分钟
     let retries = 0;
-    
+
     while (retries < maxRetries) {
       try {
-        // 检查桥接服务是否启动
-        const result = await fetch(`http://localhost:${this.config.static_ports.zkevm_bridge_service_start_port}/health`);
-        if (result.ok) {
-          this.logger.info('桥接服务已成功启动！');
-          return;
+        const command = `docker ps -f name=${containerName} --format "{{.Status}}"`;
+        const status = execSync(command, { encoding: 'utf-8' }).trim();
+        if (!status.includes('Up')) {
+          throw new Error(`${serviceName} 服务未启动`);
         }
+        this.logger.info(`${serviceName} 服务已启动`);
+        return;
       } catch (error) {
         // 忽略错误，继续重试
       }
-      
+
       await new Promise(resolve => setTimeout(resolve, 5000)); // 等待 5 秒
       retries++;
-      this.logger.info(`桥接服务正在启动中... (${retries}/${maxRetries})`);
+      this.logger.info(`${serviceName} 服务正在启动中... (${retries}/${maxRetries})`);
     }
-    
-    throw new Error('桥接服务启动超时');
+
+    throw new Error(`${serviceName} 服务启动失败`);
   }
 } 
