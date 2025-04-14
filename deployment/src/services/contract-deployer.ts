@@ -172,7 +172,8 @@ export class ContractDeployer extends BaseDeployer {
       'aggregator.keystore', 
       'proofsigner.keystore', 
       'dac.keystore', 
-      'claimsponsor.keystore'
+      'claimsponsor.keystore',
+      'claimtxmanager-keystore'
     ];
     for (const keystoreName of keystoreNames) {
       execSync(`docker cp ${contractsServiceName}:/opt/zkevm/${keystoreName} ${this.pathManager.getBuildDir()}/`,
