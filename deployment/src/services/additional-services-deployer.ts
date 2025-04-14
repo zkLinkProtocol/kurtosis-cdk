@@ -116,14 +116,14 @@ export class AdditionalServicesDeployer extends BaseDeployer {
     await this.configGenerator.renderTemplate('blockscout/init.sql', {
         dbs: [
             {
-                db: blockscoutConfig.POSTGRES.NAME,
-                user: blockscoutConfig.POSTGRES.USER,
-                password: blockscoutConfig.POSTGRES.PASSWORD
-            },
-            {
                 db: blockscoutConfig.BACKEND.DB.NAME,
                 user: blockscoutConfig.BACKEND.DB.USER,
                 password: blockscoutConfig.BACKEND.DB.PASSWORD
+            },
+            {
+                db: blockscoutConfig.STATS.DB.NAME,
+                user: blockscoutConfig.STATS.DB.USER,
+                password: blockscoutConfig.STATS.DB.PASSWORD
             },
         ]
   }, 'init-bs.sql');
