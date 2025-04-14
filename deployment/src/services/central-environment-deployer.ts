@@ -49,10 +49,18 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
       await this.deploySequencer();
 
       // 2. 部署 zkevm-pool-manager 服务
-      await this.deployZkevmPoolManager();
+      if (this.config.deployment_stages.deploy_cdk_erigon_node) {
+        await this.deployZkevmPoolManager();
+      } else {
+        this.logger.info('不部署 zkevm-pool-manager 服务');
+      }
 
       // 3. 部署 cdk erigon rpc 服务
-      await this.deployRpc();
+      if (this.config.deployment_stages.deploy_cdk_erigon_node) {
+        await this.deployRpc();
+      } else {
+        this.logger.info('不部署 cdk erigon rpc 服务');
+      }
 
       // 4. 部署 prover 服务
       if (this.shouldDeployProver()) {
@@ -88,7 +96,8 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
 
     // 生成 sequencer 服务配置
     // config.yml
-    const configName = 'config.yaml';
+    const dockerConfigName = 'config.yaml';
+    const configName = 'cdk-erigon-sequencer-config.yml';
     await this.configGenerator.renderTemplate('cdk-erigon/config.yml', {
       ...this.config.deployment_args,
       ...this.contractSetupAddresses,
@@ -123,7 +132,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
       config: {
         sequencerConfig: {
           path: this.pathManager.getBuildPath(configName),
-          name: configName,
+          name: dockerConfigName,
         },
         sequencerChainspec: {
           path: this.pathManager.getBuildPath(chainspecName),
@@ -235,6 +244,8 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     const zkevm_datastreamer_url = `http://cdk-erigon-sequencer${this.config.deployment_args.deployment_suffix}:${this.config.deployment_args.zkevm_data_streamer_port}`
     const pool_manager_url = `http://zkevm-pool-manager${this.config.deployment_args.deployment_suffix}:${this.config.deployment_args.zkevm_pool_manager_port}`
 
+    const dockerConfigName = 'config.yaml';
+    const configName = 'cdk-erigon-rpc-config.yml';
     await this.configGenerator.renderTemplate('cdk-erigon/config.yml', {
       ...this.config.deployment_args,
       ...this.contractSetupAddresses,
@@ -245,7 +256,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
       "consensus_contract_type": this.config.deployment_args.consensus_contract_type,
       "l1_sync_start_block": 0,
       "prometheus_port": this.config.deployment_args.prometheus_port,
-    }, 'config.yaml');
+    }, configName);
 
     const chainspecName = `dynamic-${this.config.deployment_args.chain_name}-chainspec.json`;
     await this.configGenerator.renderTemplate('cdk-erigon/chainspec.json', {
@@ -264,8 +275,8 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
       type: 'cdk-erigon-rpc',
       config: {
         rpcConfig: {
-          path: this.pathManager.getBuildPath('config.yaml'),
-          name: 'config.yaml',
+          path: this.pathManager.getBuildPath(configName),
+          name: dockerConfigName,
         },
         rpcChainspec: {
           path: this.pathManager.getBuildPath(chainspecName),
