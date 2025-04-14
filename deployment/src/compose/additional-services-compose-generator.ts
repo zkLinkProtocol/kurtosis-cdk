@@ -97,7 +97,7 @@ export class AdditionalServicesComposeGenerator extends BaseComposeGenerator {
             ],
             environment: config.backendConfig.envs,
             depends_on: [bs_postgres],
-            command: ['/bin/sh -c bin/blockscout eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()" && bin/blockscout start']
+            command: ["/bin/sh", "-c", "bin/blockscout eval \"Elixir.Explorer.ReleaseTasks.create_and_migrate()\" && bin/blockscout start"]
         })
 
         // add stats service
