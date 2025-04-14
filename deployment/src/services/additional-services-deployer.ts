@@ -172,7 +172,7 @@ export class AdditionalServicesDeployer extends BaseDeployer {
                     BRIDGED_TOKENS_ENABLED: "true",
                     INDEXER_POLYGON_ZKEVM_L1_RPC: blockscoutConfig.BACKEND.COMMON.l1_rpc_url,
                 },
-                port: null
+                port: blockscoutConfig.BACKEND.PORT
             },
             statsConfig: {
                 envs: {
@@ -181,9 +181,11 @@ export class AdditionalServicesDeployer extends BaseDeployer {
                     STATS__CREATE_DATABASE: "false",
                     STATS__RUN_MIGRATIONS: "true",
                     STATS__SERVER__HTTP__CORS__ENABLED: "false",
-                }
+                },
+                port: blockscoutConfig.STATS.PORT
             },
             visualizeConfig: {
+                port: blockscoutConfig.VISUALIZE.PORT
             },
             frontendConfig: {
                 envs: {
@@ -210,7 +212,8 @@ export class AdditionalServicesDeployer extends BaseDeployer {
                         icon: "swap",
                         url: blockscoutConfig.FRONTEND.COMMON.swap_url
                     }])
-                }
+                },
+                port: blockscoutConfig.FRONTEND.PORT
             }
         }
     });
