@@ -7,7 +7,6 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { AdditionalServicesComposeGenerator } from '../compose/additional-services-compose-generator';
 import { Service } from '../utils/service';
-import { EnsResolver } from 'ethers';
 
 export interface BlockscoutCommonArgs {
   chain_id: number;
