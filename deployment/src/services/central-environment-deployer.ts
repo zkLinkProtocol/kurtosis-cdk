@@ -28,7 +28,6 @@ interface ConfigFile {
 }
 
 export class CentralEnvironmentDeployer extends BaseDeployer {
-  private readonly service: Service;
   private readonly contractSetupAddresses: ContractSetupAddresses;
 
   constructor(
@@ -37,8 +36,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
     service: Service
   ) {
     super(config, logger);
-    this.service = service;
-    this.contractSetupAddresses = this.service.getContractSetupAddresses();
+    this.contractSetupAddresses = service.getContractSetupAddresses();
   }
 
   public async deploy(): Promise<void> {

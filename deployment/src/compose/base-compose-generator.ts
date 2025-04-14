@@ -19,6 +19,7 @@ export interface DockerComposeService {
   command?: string | string[];
   environment?: Record<string, string>;
   ports?: string[];
+  expose?: string[];
   volumes?: (string | DockerComposeVolume)[];
   depends_on?: string[];
   networks?: string[];
