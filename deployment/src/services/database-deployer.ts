@@ -86,8 +86,9 @@ export class DatabaseDeployer extends BaseDeployer {
     while (retries < maxRetries) {
       try {
         // 检查主数据库
+        const hostname = this.config.database.use_remote ? this.config.database.postgres_host : 'localhost';
         execSync(
-          `PGPASSWORD=${this.config.database.postgres_master_password} psql -h ${this.config.database.postgres_host} -p ${this.config.static_ports.database_start_port} -U ${this.config.database.postgres_master_user} -d ${this.config.database.postgres_master_db} -c "\\q"`,
+          `PGPASSWORD=${this.config.database.postgres_master_password} psql -h ${hostname} -p ${this.config.static_ports.database_start_port} -U ${this.config.database.postgres_master_user} -d ${this.config.database.postgres_master_db} -c "\\q"`,
           { stdio: 'pipe' }
         );
 
