@@ -241,7 +241,7 @@ export class CentralEnvironmentDeployer extends BaseDeployer {
 
     // 生成 cdk Erigon node 服务配置
     const zkevm_sequence_url = `http://cdk-erigon-sequencer${this.config.deployment_args.deployment_suffix}:${this.config.deployment_args.zkevm_rpc_http_port}`
-    const zkevm_datastreamer_url = `http://cdk-erigon-sequencer${this.config.deployment_args.deployment_suffix}:${this.config.deployment_args.zkevm_data_streamer_port}`
+    const zkevm_datastreamer_url = `cdk-erigon-sequencer${this.config.deployment_args.deployment_suffix}:${this.config.deployment_args.zkevm_data_streamer_port}`
     const pool_manager_url = `http://zkevm-pool-manager${this.config.deployment_args.deployment_suffix}:${this.config.deployment_args.zkevm_pool_manager_port}`
 
     const dockerConfigName = 'config.yaml';
